@@ -10,11 +10,11 @@ This skill supports both Chinese and English reports. The language is determined
 - **Chinese (default)**: Set `language: "zh"` in config
 - **English**: Set `language: "en"` in config
 
-The config file should be located at: `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`
+The config file should be located at: `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
 
 ## Language Detection
 
-At the start of execution, first check whether the preference file exists. If it does not exist, ask the user what research directions they want, create a minimal `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`, and then continue the workflow. After that, read the file to detect the language setting:
+At the start of execution, first check whether the preference file exists. If it does not exist, ask the user what research directions they want, create a minimal `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`, and then continue the workflow. After that, read the file to detect the language setting:
 
 ```bash
 # Resolve OBSIDIAN_VAULT_PATH if not set in the current session
@@ -24,7 +24,7 @@ if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
     [ -f "$HOME/.bash_profile" ] && source "$HOME/.bash_profile" 2>/dev/null || true
 fi
 
-PREFERENCE_FILE="$OBSIDIAN_VAULT_PATH/research_preference/preference.md"
+PREFERENCE_FILE="$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md"
 
 # If preference file is missing, ask the user for research directions,
 # create a minimal preference file, and continue
@@ -71,7 +71,7 @@ Then use this language setting throughout the workflow:
    - 确定当前日期（YYYY-MM-DD格式）
 
 2. **读取研究配置**
-   - 先检查 `$OBSIDIAN_VAULT_PATH/research_preference/preference.md` 是否存在
+   - 先检查 `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md` 是否存在
    - 如果不存在，先询问用户想看什么方向的文章（如 LLM agents、多模态、机器人、HCI 等）
    - 根据用户回答创建最小可用的 `preference.md`
    - 创建后继续搜索，不要中断整个流程
@@ -79,7 +79,7 @@ Then use this language setting throughout the workflow:
    - 提取：关键词、类别和优先级
 
 3. **扫描现有笔记构建索引**
-   - 扫描 `20_Research/Papers/` 目录下的所有 `.md` 文件
+   - 扫描 `vibe_research/20_Research/Papers/` 目录下的所有 `.md` 文件
    - 提取笔记标题（从文件名和frontmatter的title字段）
    - 构建关键词到笔记路径的映射表，用于后续自动链接
    - 优先使用 frontmatter 中的 title 字段，其次使用文件名
@@ -113,7 +113,7 @@ Then use this language setting throughout the workflow:
 # 首先切换到 skill 目录，然后执行脚本
 cd "$SKILL_DIR"
 uv run python scripts/search_arxiv.py \
-  --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
+  --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
   --output arxiv_filtered.json \
   --max-results 200 \
   --top-n 10 \
@@ -216,9 +216,9 @@ cat arxiv_filtered.json
 
 1. **创建推荐笔记文件**
    - 文件名（根据语言设置）：
-     - 中文（`language: "zh"`）：`10_Daily/YYYY-MM-DD论文推荐.md`
-     - 英文（`language: "en"`）：`10_Daily/YYYY-MM-DD-paper-recommendations.md`
-   - 使用变量：`10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（其中 `NOTE_SUFFIX` 在语言检测阶段已设置）
+     - 中文（`language: "zh"`）：`vibe_research/10_Daily/YYYY-MM-DD论文推荐.md`
+     - 英文（`language: "en"`）：`vibe_research/10_Daily/YYYY-MM-DD-paper-recommendations.md`
+   - 使用变量：`vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（其中 `NOTE_SUFFIX` 在语言检测阶段已设置）
    - 必须包含属性：
      - `keywords`: 当天推荐论文的关键词（逗号分隔，从论文标题和摘要中提取）
      - `tags`: ["llm-generated", "daily-paper-recommend"]
@@ -228,7 +228,7 @@ cat arxiv_filtered.json
    - **一般推荐论文**：其他论文
 
 3. **检查论文是否已有笔记**
-   - 搜索 `20_Research/Papers/` 目录
+   - 搜索 `vibe_research/20_Research/Papers/` 目录
    - 查找是否有该论文的详细笔记
    - 如果已有笔记：简略写，引用已有笔记
    - 如果无笔记：
@@ -349,7 +349,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **步骤0：检查论文是否已有笔记**
 ```bash
-# 在 20_Research/Papers/ 目录中搜索已有笔记
+# 在 vibe_research/20_Research/Papers/ 目录中搜索已有笔记
 # 搜索方式：
 # 1. 按论文ID搜索（如 2602.23351）
 # 2. 按论文标题搜索（模糊匹配）
@@ -398,7 +398,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - **机构**：[机构名称]
 - **链接**：[arXiv](链接) | [PDF](链接)
 - **来源**：[arXiv]
-- **详细报告**：[[20_Research/Papers/[domain]/[note_filename]|Short Title]] (自动生成)
+- **详细报告**：[[vibe_research/20_Research/Papers/[domain]/[note_filename]|Short Title]] (自动生成)
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
@@ -415,11 +415,11 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - Obsidian 会自动在 vault 中搜索匹配的文件名，无需写完整路径
 
 **详细报告说明**：
-- 报告路径：`20_Research/Papers/[论文分类]/[note_filename].md`
+- 报告路径：`vibe_research/20_Research/Papers/[论文分类]/[note_filename].md`
 - **重要**：使用 JSON 中的 `note_filename` 字段拼接 wikilink
-- **必须使用 display alias**：`[[20_Research/Papers/[domain]/[note_filename]|Short Title]]`
-  - 正确：`[[20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting|Hypothesis-Conditioned Query Rewriting]]`
-  - 错误：`[[20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting_for_Decision-Useful_Retrieval]]`（下划线直接显示，不美观）
+- **必须使用 display alias**：`[[vibe_research/20_Research/Papers/[domain]/[note_filename]|Short Title]]`
+  - 正确：`[[vibe_research/20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting|Hypothesis-Conditioned Query Rewriting]]`
+  - 错误：`[[vibe_research/20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting_for_Decision-Useful_Retrieval]]`（下划线直接显示，不美观）
 - 详细报告由 `paper-analyze` 自动生成
 
 **机构/Affiliation 提取**：
@@ -444,8 +444,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **注意**：
@@ -457,7 +457,7 @@ uv run python scripts/link_keywords.py \
 
 - **搜索范围扩大**：搜索近一个月 + 近一年热门论文
 - **综合推荐评分**：结合相关性、新近性、热门度、质量四个维度
-- **文件名以日期**：保持 `10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md` 格式（中文：`论文推荐`，英文：`paper-recommendations`）
+- **文件名以日期**：保持 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md` 格式（中文：`论文推荐`，英文：`paper-recommendations`）
 - **添加今日概览**：在推荐笔记开头添加"## 今日概览"部分，总结今日论文的主要研究方向、总体趋势、质量分布、研究热点和阅读建议
 - **按评分排序**：所有论文按推荐评分从高到低排列
 - **前3篇特殊处理**：
@@ -526,7 +526,7 @@ uv run python scripts/link_keywords.py \
      --vault "$OBSIDIAN_VAULT_PATH" \
      --output existing_notes_index.json
    ```
-   - 扫描 `20_Research/Papers/` 目录
+   - 扫描 `vibe_research/20_Research/Papers/` 目录
    - 提取笔记标题和 tags
    - 构建关键词到笔记路径的映射表
 
@@ -537,7 +537,7 @@ uv run python scripts/link_keywords.py \
    # 如果有目标日期参数（如 2026-02-21），传递给 --target-date
    cd "$SKILL_DIR"
    uv run python scripts/search_arxiv.py \
-     --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
+     --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
      --output arxiv_filtered.json \
      --max-results 200 \
      --top-n 10 \
@@ -551,7 +551,7 @@ uv run python scripts/link_keywords.py \
    - 每篇论文包含：ID、标题、作者、摘要、评分、匹配领域
 
 5. **生成推荐笔记（包含关键词链接）**
-   - 创建 `10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
+   - 创建 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
    - **按评分排序**：所有论文按推荐评分从高到低排列
    - **前3篇特殊处理**：
      - 论文名称用 wikilink 格式：`[[论文名字]]`
@@ -570,7 +570,7 @@ uv run python scripts/link_keywords.py \
    # 对每篇前三论文执行以下操作
 
    # 步骤1：检查论文是否已有笔记
-   # 在 20_Research/Papers/ 目录中搜索
+   # 在 vibe_research/20_Research/Papers/ 目录中搜索
    # - 按论文ID搜索（如 2602.23351）
    # - 按论文标题搜索（模糊匹配）
    # - 按论文标题关键词搜索（如 "Pragmatics", "Reporting Bias"）
@@ -607,7 +607,7 @@ uv run python scripts/link_keywords.py \
 - Python 3.x（用于运行搜索和筛选脚本）
 - PyYAML（用于读取研究兴趣配置文件）
 - 网络连接（访问 arXiv API）
-- `20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
+- `vibe_research/20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
 - `extract-paper-images` skill（用于提取论文图片）
 - `paper-analyze` skill（用于生成详细报告）
 
@@ -627,7 +627,7 @@ uv run python scripts/link_keywords.py \
 
 位于 `scripts/scan_existing_notes.py`，功能包括：
 
-1. **扫描笔记目录**：扫描 `20_Research/Papers/` 下所有 `.md` 文件
+1. **扫描笔记目录**：扫描 `vibe_research/20_Research/Papers/` 下所有 `.md` 文件
 2. **提取笔记信息**：
    - 文件路径
    - 文件名
@@ -649,7 +649,7 @@ uv run python scripts/scan_existing_notes.py \
 {
   "notes": [
     {
-      "path": "20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md",
+      "path": "vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md",
       "filename": "BLIP_Bootstrapping-Language-Image-Pre-training.md",
       "title": "BLIP: Bootstrapping Language-Image Pre-training for Unified Vision-Language Understanding and Generation",
       "title_keywords": ["BLIP", "Bootstrapping", "Language-Image", "Pre-training", "Unified", "Vision-Language", "Understanding", "Generation"],
@@ -657,9 +657,9 @@ uv run python scripts/scan_existing_notes.py \
     }
   ],
   "keyword_to_notes": {
-    "blip": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
-    "bootstrapping": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
-    "vision-language": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
+    "blip": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
+    "bootstrapping": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
+    "vision-language": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
   }
 }
 ```
@@ -714,8 +714,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：
@@ -731,7 +731,7 @@ uv run python scripts/link_keywords.py \
 在生成每日推荐笔记后，自动扫描现有笔记，将文本中的关键词（如BLIP、CLIP等）替换为wikilink（如[[BLIP]]）。
 
 **实现流程**：
-1. **扫描现有笔记**：扫描 `20_Research/Papers/` 目录
+1. **扫描现有笔记**：扫描 `vibe_research/20_Research/Papers/` 目录
    - 提取笔记的frontmatter（title、tags）
    - 从标题中提取关键词（按分隔符和常见词缀）
    - 从tags中提取关键词（按连字符分割）
@@ -759,8 +759,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：

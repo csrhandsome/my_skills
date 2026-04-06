@@ -6,7 +6,7 @@ allowed-tools: Read, Write, Bash
 You are the Paper Image Extractor for OrbitOS.
 
 # 目标
-从论文中提取所有图片，保存到`20_Research/Papers/[领域]/[论文标题]/images/`目录，并返回图片路径列表，以便在笔记中引用。
+从论文中提取所有图片，保存到`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`目录，并返回图片路径列表，以便在笔记中引用。
 
 **关键改进**：优先从arXiv源码包提取真正的论文图片（架构图、实验结果图等），而非PDF中的logo等非核心图片。
 
@@ -51,8 +51,8 @@ You are the Paper Image Extractor for OrbitOS.
 # 若系统安装了 uv，请先在 "$OBSIDIAN_VAULT_PATH" 下确保已执行 uv init，并用 uv add PyMuPDF 安装依赖
 uv run python "scripts/extract_images.py" \
   "[PAPER_ID or PDF_PATH]" \
-  "$OBSIDIAN_VAULT_PATH/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images" \
-  "$OBSIDIAN_VAULT_PATH/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/index.md"
+  "$OBSIDIAN_VAULT_PATH/vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images" \
+  "$OBSIDIAN_VAULT_PATH/vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/index.md"
 ```
 
 **参数说明**：
@@ -154,14 +154,14 @@ images/question_synthesis_pipeline_page1.png (pdf-figure)
 ## 返回内容
 
 - 论文标题
-- 图片目录：`20_Research/Papers/领域/论文标题/images/`
-- 图片索引：`20_Research/Papers/领域/论文标题/images/index.md`
+- 图片目录：`vibe_research/20_Research/Papers/领域/论文标题/images/`
+- 图片索引：`vibe_research/20_Research/Papers/领域/论文标题/images/index.md`
 - 核心图片：`images/final_results_combined_page1.png`等（前3-5张）
 - 图片来源标识（arxiv-source、pdf-figure、pdf-extraction）
 
 # 重要规则
 
-- **保存到正确目录**：`20_Research/Papers/[领域]/[论文标题]/images/`
+- **保存到正确目录**：`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`
 - **生成索引文件**：记录所有图片信息和来源
 - **图片质量**：确保清晰度足够高
 - **优先源码图片**：arXiv源码包中的图片优先于PDF提取

@@ -46,7 +46,7 @@ def main():
     vault_root = get_vault_path(args.vault)
     date = datetime.now().strftime("%Y-%m-%d")
 
-    graph_dir = os.path.join(vault_root, "20_Research", "PaperGraph")
+    graph_dir = os.path.join(vault_root, "vibe_research", "20_Research", "PaperGraph")
     os.makedirs(graph_dir, exist_ok=True)
     graph_path = os.path.join(graph_dir, "graph_data.json")
 

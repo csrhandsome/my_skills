@@ -75,6 +75,39 @@ def extract_arxiv_source(arxiv_id, temp_dir):
         return False
 
 
+def download_arxiv_pdf(arxiv_id, temp_dir):
+    """下载 arXiv PDF 作为兜底输入。"""
+    pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+    pdf_path = os.path.join(temp_dir, f"{arxiv_id}.pdf")
+    print(f"正在下载arXiv PDF: {pdf_url}")
+
+    try:
+        if HAS_REQUESTS:
+            response = requests.get(pdf_url, timeout=60)
+            content = response.content if response.status_code == 200 else None
+            status = response.status_code
+        else:
+            try:
+                req = urllib.request.urlopen(pdf_url, timeout=60)
+                content = req.read()
+                status = req.status
+            except urllib.error.HTTPError as http_err:
+                logger.error("PDF HTTP错误 %d: %s", http_err.code, http_err.reason)
+                return None
+
+        if status != 200 or not content:
+            print(f"PDF下载失败: HTTP {status}")
+            return None
+
+        with open(pdf_path, 'wb') as f:
+            f.write(content)
+        print(f"PDF已下载: {pdf_path}")
+        return pdf_path
+    except Exception as e:
+        logger.error("下载 arXiv PDF 失败: %s", e)
+        return None
+
+
 def find_figures_from_source(temp_dir):
     """从源码目录中查找图片（搜索所有匹配的目录）"""
     figures = []
@@ -255,10 +288,12 @@ def main():
 
     with tempfile.TemporaryDirectory() as temp_dir:
         all_figures = []
+        source_extracted = False
 
-        # 步骤1: 尝试从arXiv源码包提取
+        # 阶段1: 尝试从 arXiv 源码包提取原始图片
         if arxiv_id:
-            if extract_arxiv_source(arxiv_id, temp_dir):
+            source_extracted = extract_arxiv_source(arxiv_id, temp_dir)
+            if source_extracted:
                 source_figures = find_figures_from_source(temp_dir)
                 if source_figures:
                     print(f"\n从arXiv源码找到 {len(source_figures)} 个图片文件")
@@ -275,16 +310,8 @@ def main():
                         })
                         print(f"  - {fig['filename']}")
 
-        # 步骤2: 如果源码包中没有找到足够的图片，从PDF中提取
-        if len(all_figures) < 3 and pdf_path:
-            print(f"\n找到的图片数量较少，从PDF直接提取...")
-            pdf_figures = extract_pdf_figures(pdf_path, output_dir)
-            for fig in pdf_figures:
-                fig['source'] = 'pdf-extraction'
-                all_figures.append(fig)
-
-        # 步骤3: 检查源码包中的PDF图片文件并提取
-        if arxiv_id and os.path.exists(temp_dir):
+        # 阶段2: 提取源码包中内嵌/附带的 PDF 图文件
+        if source_extracted and os.path.exists(temp_dir):
             for root, dirs, files in os.walk(temp_dir):
                 for file in files:
                     if file.endswith('.pdf') and 'logo' not in file.lower() and file != f'{arxiv_id}.tar.gz':
@@ -296,6 +323,18 @@ def main():
                                 all_figures.append(fig)
                         except Exception as e:
                             logger.warning("  跳过无法处理的PDF: %s (%s)", file, e)
+
+        # 阶段3: 如果只有 arXiv ID 且当前没有 PDF 输入，下载 arXiv PDF 作为兜底
+        if len(all_figures) < 3 and not pdf_path and arxiv_id:
+            pdf_path = download_arxiv_pdf(arxiv_id, temp_dir)
+
+        # 阶段4: 对最终可得的 PDF 执行直接图片提取
+        if len(all_figures) < 3 and pdf_path:
+            print("\n找到的图片数量较少，从PDF直接提取...")
+            pdf_figures = extract_pdf_figures(pdf_path, output_dir)
+            for fig in pdf_figures:
+                fig['source'] = 'pdf-extraction'
+                all_figures.append(fig)
 
     # 生成索引文件
     with open(index_file, 'w', encoding='utf-8') as f:

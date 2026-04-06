@@ -11,7 +11,7 @@ This skill supports both Chinese and English reports. The language is determined
 - **Chinese (default)**: Set `language: "zh"` in config
 - **English**: Set `language: "en"` in config
 
-The config file should be located at: `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`
+The config file should be located at: `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
 
 ## Language Detection
 
@@ -19,7 +19,7 @@ At the start of execution, read the config file to detect the language setting:
 
 ```bash
 # Read language from config
-LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" | awk '{print $2}' | tr -d '"')
+LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" | awk '{print $2}' | tr -d '"')
 
 # Default to Chinese if not set
 if [ -z "$LANGUAGE" ]; then
@@ -52,7 +52,7 @@ cd /tmp/paper_analysis
 # 设置变量（从环境变量 OBSIDIAN_VAULT_PATH 读取，或让用户指定）
 PAPER_ID="[PAPER_ID]"
 VAULT_ROOT="${OBSIDIAN_VAULT_PATH}"
-PAPERS_DIR="${VAULT_ROOT}/20_Research/Papers"
+PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 ```
 
 ### 步骤1：识别论文
@@ -68,7 +68,7 @@ PAPERS_DIR="${VAULT_ROOT}/20_Research/Papers"
 ### 1.2 检查现有笔记
 
 1. **搜索已有笔记**
-   - 按arXiv ID在`20_Research/Papers/`目录中搜索
+   - 按arXiv ID在`vibe_research/20_Research/Papers/`目录中搜索
    - 按标题匹配
    - 如果找到，读取该笔记
 
@@ -120,7 +120,7 @@ cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
 2. **获取PDF内容和图片**
    - 使用WebFetch获取PDF
    - **重要**：提取论文中的所有图片
-   - 保存图片到`20_Research/Papers/[领域]/[论文标题]/images/`
+   - 保存图片到`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`
    - 生成图片索引：`images/index.md`
 
 ### 2.2 从Hugging Face获取（如果适用）
@@ -247,7 +247,7 @@ ls "PAPERS_DIR/[DOMAIN]/[PAPER_TITLE]/images/"
 # - 如果提到"language model/LLM/MoE" → 大模型
 # - 否则 → 其他
 
-PAPERS_DIR="${VAULT_ROOT}/20_Research/Papers"
+PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 DOMAIN="[推断的领域]"
 PAPER_TITLE="[论文标题，空格替换为下划线]"
 NOTE_PATH="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}.md"
@@ -534,7 +534,7 @@ cd /tmp/paper_analysis
 #### 步骤1：识别论文
 ```bash
 # 搜索已有笔记
-find "${VAULT_ROOT}/20_Research/Papers" -name "*${PAPER_ID}*" -type f
+find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -type f
 ```
 
 #### 步骤2：获取论文内容
@@ -830,7 +830,7 @@ uv run python "scripts/generate_note.py" \
 ### 5.1 添加或更新节点
 
 1. **读取图谱数据**
-   - 文件路径：`$OBSIDIAN_VAULT_PATH/20_Research/PaperGraph/graph_data.json`
+   - 文件路径：`$OBSIDIAN_VAULT_PATH/vibe_research/20_Research/PaperGraph/graph_data.json`
 
 2. **添加或更新该论文的节点**
    - 包含分析元数据：
@@ -862,7 +862,7 @@ uv run python "scripts/generate_note.py" \
 **论文**：[[论文标题]] (arXiv:XXXX.XXXXX)
 
 **分析状态**：✅ 已生成详细笔记
-**笔记位置**：[[20_Research/Papers/领域/YYYY-MM-DD-arXiv-ID.md]]
+**笔记位置**：[[vibe_research/20_Research/Papers/领域/YYYY-MM-DD-arXiv-ID.md]]
 
 ---
 
@@ -1050,7 +1050,7 @@ cd /tmp/paper_analysis
 #### 步骤1：识别论文
 ```bash
 # 搜索已有笔记
-find "${VAULT_ROOT}/20_Research/Papers" -name "*${PAPER_ID}*" -type f
+find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -type f
 ```
 
 #### 步骤2：获取论文内容
