@@ -1,0 +1,50 @@
+# conf-papers skill 预设：hci
+
+preset: hci
+
+# Semantic Scholar API Key（可选，但强烈建议配置；可显著降低 429 概率）
+# 免费申请: https://www.semanticscholar.org/product/api#api-key
+# semantic_scholar_api_key: "your-api-key-here"
+
+# 本地缓存路径（可选；默认使用 ~/.cache/vibe_research_skills/semantic_scholar_cache.json）
+# semantic_scholar_cache_path: "~/.cache/vibe_research_skills/semantic_scholar_cache.json"
+
+# HCI 方向关键词（用于从顶会论文中筛选）
+keywords:
+  - "human-computer interaction"
+  - "human computer interaction"
+  - "user interface"
+  - "interaction"
+  - "interactive"
+  - "user study"
+  - "usability"
+  - "user experience"
+  - "accessibility"
+  - "assistive"
+  - "collaboration"
+  - "virtual reality"
+  - "augmented reality"
+  - "mixed reality"
+  - "embodied"
+
+# 排除的关键词
+excluded_keywords:
+  - "workshop"
+  - "panel"
+  - "competition"
+  - "tutorial"
+  - "doctoral consortium"
+
+# 默认搜索年份（命令行参数可覆盖）
+default_year: 2025
+
+# 默认搜索的会议（命令行参数可覆盖，大小写均支持）
+# 可选: CHI, UIST, CSCW, IUI, UbiComp, DIS
+default_conferences:
+  - "CHI"
+  - "UIST"
+  - "CSCW"
+  - "IUI"
+
+# 返回的论文数量
+top_n: 10
