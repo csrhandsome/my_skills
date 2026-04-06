@@ -10,11 +10,11 @@ This skill supports both Chinese and English reports. The language is determined
 - **Chinese (default)**: Set `language: "zh"` in config
 - **English**: Set `language: "en"` in config
 
-The config file should be located at: `$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md`
+The config file should be located at: `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`
 
 ## Language Detection
 
-At the start of execution, read the config file to detect the language setting:
+At the start of execution, first check whether the preference file exists. If it does not exist, ask the user what research directions they want, create a minimal `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`, and then continue the workflow. After that, read the file to detect the language setting:
 
 ```bash
 # Resolve OBSIDIAN_VAULT_PATH if not set in the current session
@@ -24,8 +24,18 @@ if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
     [ -f "$HOME/.bash_profile" ] && source "$HOME/.bash_profile" 2>/dev/null || true
 fi
 
-# Read language from config
-LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md" | awk '{print $2}' | tr -d '"')
+PREFERENCE_FILE="$OBSIDIAN_VAULT_PATH/research_preference/preference.md"
+
+# If preference file is missing, ask the user for research directions,
+# create a minimal preference file, and continue
+if [ ! -f "$PREFERENCE_FILE" ]; then
+    echo "Missing preference file: $PREFERENCE_FILE"
+    echo "Ask the user what kinds of papers they want to read (e.g. LLM agents, multimodal learning, robotics, HCI)."
+    echo "Then create a minimal preference.md and continue the workflow instead of exiting."
+fi
+
+# Read language from config after ensuring the preference file exists
+LANGUAGE=$(grep -E "^\s*language:" "$PREFERENCE_FILE" | awk '{print $2}' | tr -d '"')
 
 # Default to Chinese if not set
 if [ -z "$LANGUAGE" ]; then
@@ -61,7 +71,11 @@ Then use this language setting throughout the workflow:
    - 确定当前日期（YYYY-MM-DD格式）
 
 2. **读取研究配置**
-   - 读取 `$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md` 获取研究偏好与语言设置
+   - 先检查 `$OBSIDIAN_VAULT_PATH/research_preference/preference.md` 是否存在
+   - 如果不存在，先询问用户想看什么方向的文章（如 LLM agents、多模态、机器人、HCI 等）
+   - 根据用户回答创建最小可用的 `preference.md`
+   - 创建后继续搜索，不要中断整个流程
+   - 然后读取该文件获取研究偏好与语言设置
    - 提取：关键词、类别和优先级
 
 3. **扫描现有笔记构建索引**
@@ -99,7 +113,7 @@ Then use this language setting throughout the workflow:
 # 首先切换到 skill 目录，然后执行脚本
 cd "$SKILL_DIR"
 uv run python scripts/search_arxiv.py \
-  --config "$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md" \
+  --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
   --output arxiv_filtered.json \
   --max-results 200 \
   --top-n 10 \
@@ -415,7 +429,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 ## 步骤5：自动链接关键词（可选）
 
-在生成推荐笔记后，自动链接关键词到现有笔记：
+在生成推荐笔记后，自动链接关键词到同一个推荐笔记文件：
 
 ```bash
 # 步骤1：扫描现有笔记
@@ -431,7 +445,7 @@ uv run python scripts/scan_existing_notes.py \
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
   --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}_linked.md"
+  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **注意**：
@@ -523,7 +537,7 @@ uv run python scripts/link_keywords.py \
    # 如果有目标日期参数（如 2026-02-21），传递给 --target-date
    cd "$SKILL_DIR"
    uv run python scripts/search_arxiv.py \
-     --config "$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md" \
+     --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
      --output arxiv_filtered.json \
      --max-results 200 \
      --top-n 10 \
@@ -701,7 +715,7 @@ uv run python scripts/scan_existing_notes.py \
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
   --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}_linked.md"
+  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：
@@ -746,7 +760,7 @@ uv run python scripts/scan_existing_notes.py \
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
   --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}_linked.md"
+  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：

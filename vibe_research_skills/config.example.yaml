@@ -22,6 +22,10 @@ papers_dir: "20_Research/Papers"
 # semantic_scholar_api_key: "your-api-key-here"
 
 # Research interests configuration (required)
+# Important:
+#   Keep only the domains you actually care about.
+#   The example below intentionally covers multiple fields (including medical),
+#   and any domain left here will be treated as a real preference during search.
 research_domains:
   # Domain names can be customized freely
   "Computational Pathology":

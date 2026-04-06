@@ -11,7 +11,7 @@ This skill supports both Chinese and English reports. The language is determined
 - **Chinese (default)**: Set `language: "zh"` in config
 - **English**: Set `language: "en"` in config
 
-The config file should be located at: `$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md`
+The config file should be located at: `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`
 
 ## Language Detection
 
@@ -19,7 +19,7 @@ At the start of execution, read the config file to detect the language setting:
 
 ```bash
 # Read language from config
-LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/99_System/research_preference/preference.md" | awk '{print $2}' | tr -d '"')
+LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" | awk '{print $2}' | tr -d '"')
 
 # Default to Chinese if not set
 if [ -z "$LANGUAGE" ]; then

@@ -48,6 +48,7 @@ ARXIV_NS = {
     'atom': 'http://www.w3.org/2005/Atom',
     'arxiv': 'http://arxiv.org/schemas/atom'
 }
+DEFAULT_PREFERENCE_RELATIVE_PATH = os.path.join('research_preference', 'preference.md')
 
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 SEMANTIC_SCHOLAR_FIELDS = "title,abstract,publicationDate,citationCount,influentialCitationCount,url,authors,authors.affiliations,externalIds"
@@ -74,6 +75,7 @@ SCORE_MAX = 3.0
 RELEVANCE_TITLE_KEYWORD_BOOST = 0.5
 RELEVANCE_SUMMARY_KEYWORD_BOOST = 0.3
 RELEVANCE_CATEGORY_MATCH_BOOST = 1.0
+RELEVANCE_PRIORITY_BOOST_PER_LEVEL = 0.05
 
 # 新近性阈值（天） -> 对应评分
 RECENCY_THRESHOLDS = [
@@ -712,6 +714,34 @@ def parse_arxiv_xml(xml_content: str) -> List[Dict]:
     return papers
 
 
+def normalize_relevance_text(text: str) -> str:
+    """将文本归一化为适合做边界匹配的形式。"""
+    return re.sub(r'[^a-z0-9]+', ' ', (text or '').lower()).strip()
+
+
+def keyword_in_text(keyword: str, normalized_text: str) -> bool:
+    """
+    更严格的关键词匹配：
+    - 默认按词边界 / 短语边界匹配，避免简单子串误命中
+    - 对短关键词（如 CT、MRI）要求独立 token 命中
+    """
+    keyword_segments = re.findall(r'[a-z0-9]+', (keyword or '').lower())
+    if not keyword_segments:
+        return False
+
+    if not normalized_text:
+        return False
+
+    if len(keyword_segments) == 1:
+        token = keyword_segments[0]
+        pattern = rf'(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])'
+        return re.search(pattern, normalized_text) is not None
+
+    phrase = r'\s+'.join(re.escape(seg) for seg in keyword_segments)
+    pattern = rf'(?<![a-z0-9]){phrase}(?![a-z0-9])'
+    return re.search(pattern, normalized_text) is not None
+
+
 def calculate_relevance_score(
     paper: Dict,
     domains: Dict,
@@ -730,6 +760,8 @@ def calculate_relevance_score(
     """
     title = paper.get('title', '').lower()
     summary = paper.get('summary', '').lower() if 'summary' in paper else paper.get('abstract', '').lower()
+    normalized_title = normalize_relevance_text(title)
+    normalized_summary = normalize_relevance_text(summary)
     categories = set(paper.get('categories', []))
     
     # 检查排除关键词
@@ -743,26 +775,38 @@ def calculate_relevance_score(
     
     # 遍历所有领域
     for domain_name, domain_config in domains.items():
-        score = 0
+        keyword_score = 0.0
+        category_score = 0.0
         domain_matched_keywords = []
         
         # 关键词匹配
         keywords = domain_config.get('keywords', [])
         for keyword in keywords:
-            keyword_lower = keyword.lower()
-            if keyword_lower in title:
-                score += RELEVANCE_TITLE_KEYWORD_BOOST
+            if keyword_in_text(keyword, normalized_title):
+                keyword_score += RELEVANCE_TITLE_KEYWORD_BOOST
                 domain_matched_keywords.append(keyword)
-            elif keyword_lower in summary:
-                score += RELEVANCE_SUMMARY_KEYWORD_BOOST
+            elif keyword_in_text(keyword, normalized_summary):
+                keyword_score += RELEVANCE_SUMMARY_KEYWORD_BOOST
                 domain_matched_keywords.append(keyword)
+
+        # 没有关键词命中时直接跳过该 domain。
+        # 仅靠 arXiv category 过筛会把同大类下的大量噪声论文放进来。
+        if keyword_score == 0:
+            continue
         
         # 类别匹配
         domain_categories = domain_config.get('arxiv_categories', [])
         for cat in domain_categories:
             if cat in categories:
-                score += RELEVANCE_CATEGORY_MATCH_BOOST
+                category_score += RELEVANCE_CATEGORY_MATCH_BOOST
                 domain_matched_keywords.append(cat)
+
+        score = keyword_score + category_score
+
+        # 使用 priority 作为轻量排序因子，而不是放宽准入门槛
+        priority = domain_config.get('priority', 0) or 0
+        if priority > 0:
+            score += min(priority, 10) * RELEVANCE_PRIORITY_BOOST_PER_LEVEL
         
         if score > max_score:
             max_score = score
@@ -1004,12 +1048,12 @@ def main():
 
     default_config = os.environ.get('OBSIDIAN_VAULT_PATH', '')
     if default_config:
-        default_config = os.path.join(default_config, '99_System', 'Config', 'research_interests.yaml')
+        default_config = os.path.join(default_config, DEFAULT_PREFERENCE_RELATIVE_PATH)
 
     parser = argparse.ArgumentParser(description='Search and filter arXiv papers with Semantic Scholar integration')
     parser.add_argument('--config', type=str,
                         default=default_config or None,
-                        help='Path to research interests config file (or set OBSIDIAN_VAULT_PATH env var)')
+                        help='Path to preference config file (or set OBSIDIAN_VAULT_PATH env var)')
     parser.add_argument('--output', type=str, default='arxiv_filtered.json',
                         help='Output JSON file path')
     parser.add_argument('--max-results', type=int, default=200,
