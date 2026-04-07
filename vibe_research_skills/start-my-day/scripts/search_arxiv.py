@@ -79,6 +79,8 @@ RELEVANCE_TITLE_KEYWORD_BOOST = 0.5
 RELEVANCE_SUMMARY_KEYWORD_BOOST = 0.3
 RELEVANCE_CATEGORY_MATCH_BOOST = 1.0
 RELEVANCE_PRIORITY_BOOST_PER_LEVEL = 0.05
+# 相关性准入阈值（避免弱相关论文仅靠热门度上榜）
+MIN_RELEVANCE_THRESHOLD = 0.8
 
 # 新近性阈值（天） -> 对应评分
 RECENCY_THRESHOLDS = [
@@ -99,11 +101,11 @@ WEIGHTS_NORMAL = {
     'popularity': 0.30,
     'quality': 0.10,
 }
-# 综合推荐评分权重（高影响力论文：提高热门度，降低新近性）
+# 综合推荐评分权重（高影响力论文：保持相关性优先，避免仅凭热门度上榜）
 WEIGHTS_HOT = {
-    'relevance': 0.35,
+    'relevance': 0.50,
     'recency': 0.10,
-    'popularity': 0.45,
+    'popularity': 0.30,
     'quality': 0.10,
 }
 
@@ -124,38 +126,28 @@ S2_LAST_REQUEST_TS = 0.0
 def load_research_config(config_path: str) -> Dict:
     """
     从 YAML 文件加载研究兴趣配置
-    
+
     Args:
         config_path: 配置文件路径
-        
+
     Returns:
         研究配置字典
     """
     import yaml
-    
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f) or {}
-        # 读取 Semantic Scholar API Key（如果配置了）
-        set_semantic_scholar_api_key(config.get('semantic_scholar_api_key'))
-        return config
-    except Exception as e:
-        logger.error("Error loading config: %s", e)
-        set_semantic_scholar_api_key()
-        # 返回默认配置
-        return {
-            "research_domains": {
-                "大模型": {
-                    "keywords": [
-                        "pre-training", "foundation model", "model architecture",
-                        "large language model", "LLM", "transformer"
-                    ],
-                    "arxiv_categories": ["cs.AI", "cs.LG", "cs.CL"],
-                    "priority": 5
-                }
-            },
-            "excluded_keywords": ["3D", "review", "workshop", "survey"]
-        }
+
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f) or {}
+
+    # 读取 Semantic Scholar API Key（如果配置了）
+    set_semantic_scholar_api_key(config.get('semantic_scholar_api_key'))
+
+    research_domains = config.get('research_domains')
+    if not isinstance(research_domains, dict) or not research_domains:
+        raise ValueError(
+            f"Invalid preference config: 'research_domains' is required and must be a non-empty mapping ({config_path})"
+        )
+
+    return config
 
 
 def set_semantic_scholar_api_key(api_key: Optional[str] = None) -> Optional[str]:
@@ -1092,8 +1084,8 @@ def filter_and_score_papers(
             paper, domains, excluded_keywords
         )
 
-        # 如果相关性为0，跳过
-        if relevance == 0:
+        # 如果相关性低于阈值，跳过
+        if relevance < MIN_RELEVANCE_THRESHOLD:
             continue
 
         # 计算新近性
@@ -1157,6 +1149,11 @@ def filter_and_score_papers(
             'quality': round(quality, 2),
             'recommendation': recommendation_score
         }
+        paper['selection_reason'] = {
+            'matched_domain': matched_domain,
+            'matched_keywords': matched_keywords,
+            'relevance_threshold': MIN_RELEVANCE_THRESHOLD,
+        }
         paper['matched_domain'] = matched_domain
         paper['matched_keywords'] = matched_keywords
         paper['is_hot_paper'] = is_hot_paper_batch
@@ -1167,6 +1164,28 @@ def filter_and_score_papers(
     scored_papers.sort(key=lambda x: x['scores']['recommendation'], reverse=True)
 
     return scored_papers
+
+
+def resolve_categories_from_config(config: Dict) -> List[str]:
+    """从 preference 配置聚合 arXiv categories。"""
+    domains = config.get('research_domains', {})
+    categories: List[str] = []
+    seen = set()
+
+    if not isinstance(domains, dict):
+        return categories
+
+    for domain_config in domains.values():
+        if not isinstance(domain_config, dict):
+            continue
+        for cat in domain_config.get('arxiv_categories', []) or []:
+            cat_str = str(cat).strip()
+            if not cat_str or cat_str in seen:
+                continue
+            seen.add(cat_str)
+            categories.append(cat_str)
+
+    return categories
 
 
 def main():
@@ -1190,8 +1209,8 @@ def main():
     parser.add_argument('--target-date', type=str, default=None,
                         help='Target date (YYYY-MM-DD) for filtering')
     parser.add_argument('--categories', type=str,
-                        default='cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO',
-                        help='Comma-separated list of arXiv categories')
+                        default=None,
+                        help='Comma-separated list of arXiv categories (optional; default derives from preference config)')
     parser.add_argument('--skip-hot-papers', action='store_true',
                         help='Skip searching hot papers from Semantic Scholar')
 
@@ -1209,7 +1228,12 @@ def main():
         return 1
 
     logger.info("Loading config from: %s", args.config)
-    config = load_research_config(args.config)
+    try:
+        config = load_research_config(args.config)
+    except Exception as e:
+        logger.error("Failed to load preference config: %s", e)
+        return 1
+
     logger.info(
         "Semantic Scholar API key: %s",
         "configured" if S2_API_KEY else "not configured",
@@ -1233,8 +1257,15 @@ def main():
     logger.info("  Recent 30 days: %s to %s", window_30d_start.date(), window_30d_end.date())
     logger.info("  Past year (31-365 days): %s to %s", window_1y_start.date(), window_1y_end.date())
 
-    # 解析分类
-    categories = args.categories.split(',')
+    # 解析分类：默认从 preference 配置聚合，CLI 显式传入时覆盖
+    if args.categories:
+        categories = [c.strip() for c in args.categories.split(',') if c.strip()]
+    else:
+        categories = resolve_categories_from_config(config)
+
+    if not categories:
+        logger.error("No arXiv categories resolved. Please set research_domains.*.arxiv_categories in preference.md or pass --categories.")
+        return 1
 
     all_scored_papers = []
     recent_papers = []

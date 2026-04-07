@@ -116,8 +116,12 @@ uv run python scripts/search_arxiv.py \
   --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
   --output arxiv_filtered.json \
   --max-results 200 \
-  --top-n 10 \
-  --categories "cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO"
+  --top-n 10
+
+# 默认会从 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+# 仅在你要临时覆盖时才加：
+#   --categories "cs.AI,cs.LG,..."
+# 若 preference.md 缺少 research_domains 或格式不合法，脚本会直接报错退出（不再静默回退默认领域）
 ```
 
 **脚本功能**：
@@ -343,9 +347,9 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 arXiv API 未提供，从下载的源码包读取
 - **不要使用 `---` 作为"无数据"占位符**：使用 `--` 代替（三个短横线会被 Obsidian 解析为分隔线）
 
-#### 4.2.3 前三篇论文插入图片和调用详细分析
+#### 4.2.3 前三篇论文进行图片语义筛选和详细分析
 
-对于前3篇论文（评分最高的3篇）：
+对于前3篇论文（评分最高的3篇，作为候选图来源）：
 
 **步骤0：检查论文是否已有笔记**
 ```bash
@@ -462,10 +466,11 @@ uv run python scripts/link_keywords.py \
 - **按评分排序**：所有论文按推荐评分从高到低排列
 - **前3篇特殊处理**：
   - 论文名称用 wikilink 格式：`[[论文名字]]`
-  - 自动提取第一张图片并插入
+  - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
   - 自动调用 `paper-analyze` 生成详细报告
   - 在"详细报告"字段显示 wikilink 关联
-- **其他论文**：只写基本信息，不插入图片
+- **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+- **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
 - **保持快速**：让用户快速了解当日推荐
 - **避免重复**：检查已推荐论文
 - **自动关键词链接**：
@@ -486,10 +491,10 @@ uv run python scripts/link_keywords.py \
   - 所有论文统一格式
   - 前3篇特殊处理：
     - 论文名称用 wikilink 格式：`[[论文名字]]`
-    - 自动提取第一张图片并插入
+    - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
     - 自动调用 `paper-analyze` 生成详细报告
     - 在"详细报告"字段显示 wikilink 关联
-- **图片处理**：前3篇自动提取并插入第一张图片；不包含所有论文的图
+- **图片处理**：从前3篇候选论文中语义筛选并插入2-3张图（非机械使用第一张）
 - **详细报告**：前3篇自动生成，其他论文不生成
 - **适用**：用户每天手动触发
 - **笔记引用**：如果论文已有笔记，简略写并引用；如果分析需要引用历史笔记，也直接引用
@@ -541,8 +546,10 @@ uv run python scripts/link_keywords.py \
      --output arxiv_filtered.json \
      --max-results 200 \
      --top-n 10 \
-     --categories "cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO" \
      --target-date "{目标日期}"  # 如果用户指定了日期，替换为实际日期
+
+   # 默认按 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+   # 如需覆盖默认分类，再显式传 --categories "..."
    ```
 
 4. **读取筛选结果**
@@ -555,9 +562,10 @@ uv run python scripts/link_keywords.py \
    - **按评分排序**：所有论文按推荐评分从高到低排列
    - **前3篇特殊处理**：
      - 论文名称用 wikilink 格式：`[[论文名字]]`
-     - 在"一句话总结"后插入实际提取的第一张图片
+     - 在"一句话总结"后插入经语义筛选的图片（方法/架构图优先，其次关键结果图）
      - 在"详细报告"字段显示 wikilink 关联
-   - **其他论文**：只写基本信息，不插入图片
+   - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+   - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
    - **关键词自动链接**（重要！）：
      - 在生成笔记后，扫描文本中的关键词
      - 使用 `existing_notes_index.json` 进行匹配
@@ -581,7 +589,7 @@ uv run python scripts/link_keywords.py \
        # 使用已有的笔记路径
        # 只提取图片（如果没有图片的话）
    else:
-       # 提取第一张图片
+       # 提取候选图片（后续做语义筛选）
        /extract-paper-images [论文ID]
 
        # 生成详细分析报告
@@ -593,7 +601,7 @@ uv run python scripts/link_keywords.py \
      - 检查是否需要提取图片（如果没有 images 目录或 images 目录为空）
      - 在推荐笔记的"详细报告"字段引用已有笔记
    - **如果没有笔记**：
-     - 提取第一张图片并保存到 vault
+     - 提取候选图片并执行语义筛选后保存到 vault
      - 生成详细的论文分析报告
      - 在推荐笔记中添加图片和详细报告链接
 
