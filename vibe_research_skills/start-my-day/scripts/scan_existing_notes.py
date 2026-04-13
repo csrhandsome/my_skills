@@ -10,7 +10,7 @@ import json
 import sys
 import argparse
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import List, Dict, Set, Tuple
 import yaml
 
@@ -90,6 +90,34 @@ def extract_keywords_from_title(title: str) -> List[str]:
     return keywords
 
 
+def normalize_alias(text: str) -> str:
+    """将标题/文件名规范化为稳定的轻量别名。"""
+    normalized = text.lower()
+    normalized = re.sub(r'[\W_]+', ' ', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    return normalized
+
+
+def should_exclude_note(md_file: Path, papers_dir: Path) -> bool:
+    """排除图片目录和自动生成索引等不应进入论文索引的 markdown。"""
+    try:
+        rel_path = md_file.relative_to(papers_dir)
+    except ValueError:
+        return False
+
+    rel_posix = PurePosixPath(rel_path.as_posix())
+    parts_lower = [part.lower() for part in rel_posix.parts]
+    name_lower = rel_posix.name.lower()
+
+    if 'images' in parts_lower:
+        return True
+    if name_lower == 'index.md':
+        return True
+    if name_lower.startswith('tmp_') or name_lower.startswith('temp_'):
+        return True
+    return False
+
+
 def scan_notes_directory(papers_dir: Path) -> List[Dict]:
     """
     扫描 Papers 目录下的所有笔记
@@ -104,6 +132,8 @@ def scan_notes_directory(papers_dir: Path) -> List[Dict]:
 
     # 递归查找所有 .md 文件
     for md_file in papers_dir.rglob('*.md'):
+        if should_exclude_note(md_file, papers_dir):
+            continue
         try:
             with open(md_file, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
@@ -176,6 +206,13 @@ def build_keyword_index(notes: List[Dict]) -> Dict[str, List[str]]:
         # "faithfulness", "LLM") and must not be linked to a specific paper path.
         for keyword in note['title_keywords']:
             _add_keyword(keyword.lower(), note['path'])
+            normalized_keyword = normalize_alias(keyword)
+            if normalized_keyword and normalized_keyword != keyword.lower():
+                _add_keyword(normalized_keyword, note['path'])
+
+        title_alias = normalize_alias(note.get('title', ''))
+        if title_alias:
+            _add_keyword(title_alias, note['path'])
 
         # 使用短名称（文件名）作为关键词，但只添加主要部分
         if 'short_name' in note:
@@ -186,6 +223,9 @@ def build_keyword_index(notes: List[Dict]) -> Dict[str, List[str]]:
             # 如果清理后的短名称长度合适，添加到索引
             if 3 <= len(clean_short) <= 40 and clean_short.lower() not in COMMON_WORDS:
                 _add_keyword(clean_short.lower(), note['path'])
+                normalized_short = normalize_alias(clean_short)
+                if normalized_short and normalized_short != clean_short.lower():
+                    _add_keyword(normalized_short, note['path'])
 
     # 将 set 转换为 list 输出
     keyword_index = {k: list(v) for k, v in keyword_sets.items()}
@@ -201,7 +241,7 @@ def main():
     parser.add_argument('--output', type=str, default='existing_notes_index.json',
                         help='Output JSON file path')
     parser.add_argument('--papers-dir', type=str,
-                        default='20_Research/Papers',
+                        default='vibe_research/20_Research/Papers',
                         help='Relative path to Papers directory')
 
     args = parser.parse_args()

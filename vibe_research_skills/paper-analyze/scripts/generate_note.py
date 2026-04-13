@@ -382,7 +382,7 @@ def main():
     args = parser.parse_args()
 
     vault_root = get_vault_path(args.vault)
-    papers_dir = os.path.join(vault_root, "20_Research", "Papers")
+    papers_dir = os.path.join(vault_root, "vibe_research", "20_Research", "Papers")
     date = datetime.now().strftime("%Y-%m-%d")
 
     # 清理文件名中的非法字符

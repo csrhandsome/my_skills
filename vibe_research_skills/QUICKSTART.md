@@ -71,10 +71,12 @@ research_domains:
 
 ```bash
 # macOS/Linux
-cp config.yaml "$OBSIDIAN_VAULT_PATH/99_System/Config/research_interests.yaml"
+mkdir -p "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference"
+cp config.yaml "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md"
 
 # Windows PowerShell
-Copy-Item config.yaml "$env:OBSIDIAN_VAULT_PATH\99_System\Config\research_interests.yaml"
+New-Item -ItemType Directory -Force "$env:OBSIDIAN_VAULT_PATH\vibe_research\research_preference" | Out-Null
+Copy-Item config.yaml "$env:OBSIDIAN_VAULT_PATH\vibe_research\research_preference\preference.md"
 ```
 
 ### 2.4 将技能安装到 Claude Code
@@ -101,12 +103,13 @@ Copy-Item -Recurse evil-read-arxiv\paper-search $env:USERPROFILE\.claude\skills\
 
 ```
 你的Vault/
-├── 10_Daily/
-├── 20_Research/
-│   └── Papers/
-├── 99_System/
-│   └── Config/
-│       └── research_interests.yaml  # 第二步中已复制
+└── vibe_research/
+    ├── 10_Daily/
+    ├── 20_Research/
+    │   ├── Papers/
+    │   └── PaperGraph/
+    └── research_preference/
+        └── preference.md  # 第二步中已复制
 ```
 
 ## 开始使用
@@ -165,7 +168,7 @@ paper-analyze 2602.12345
    echo $OBSIDIAN_VAULT_PATH
    ```
 2. 如果为空，回到第二步设置环境变量
-3. 确认目录结构已正确创建
+3. 确认目录结构已正确创建，尤其是 `vibe_research/20_Research/Papers/`
 
 ### 问题：论文图片提取失败
 

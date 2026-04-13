@@ -48,10 +48,13 @@ ARXIV_NS = {
     'atom': 'http://www.w3.org/2005/Atom',
     'arxiv': 'http://arxiv.org/schemas/atom'
 }
-DEFAULT_PREFERENCE_RELATIVE_PATH = os.path.join('research_preference', 'preference.md')
+DEFAULT_PREFERENCE_RELATIVE_PATH = os.path.join(
+    'vibe_research', 'research_preference', 'preference.md'
+)
 
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 SEMANTIC_SCHOLAR_FIELDS = "title,abstract,publicationDate,citationCount,influentialCitationCount,url,authors,authors.affiliations,externalIds"
+OPENALEX_API_URL = "https://api.openalex.org/works"
 
 # 默认分类关键词映射（当配置中无用户自定义关键词时使用）
 ARXIV_CATEGORY_KEYWORDS = {
@@ -76,6 +79,8 @@ RELEVANCE_TITLE_KEYWORD_BOOST = 0.5
 RELEVANCE_SUMMARY_KEYWORD_BOOST = 0.3
 RELEVANCE_CATEGORY_MATCH_BOOST = 1.0
 RELEVANCE_PRIORITY_BOOST_PER_LEVEL = 0.05
+# 相关性准入阈值（避免弱相关论文仅靠热门度上榜）
+MIN_RELEVANCE_THRESHOLD = 0.8
 
 # 新近性阈值（天） -> 对应评分
 RECENCY_THRESHOLDS = [
@@ -96,11 +101,11 @@ WEIGHTS_NORMAL = {
     'popularity': 0.30,
     'quality': 0.10,
 }
-# 综合推荐评分权重（高影响力论文：提高热门度，降低新近性）
+# 综合推荐评分权重（高影响力论文：保持相关性优先，避免仅凭热门度上榜）
 WEIGHTS_HOT = {
-    'relevance': 0.35,
+    'relevance': 0.50,
     'recency': 0.10,
-    'popularity': 0.45,
+    'popularity': 0.30,
     'quality': 0.10,
 }
 
@@ -121,38 +126,28 @@ S2_LAST_REQUEST_TS = 0.0
 def load_research_config(config_path: str) -> Dict:
     """
     从 YAML 文件加载研究兴趣配置
-    
+
     Args:
         config_path: 配置文件路径
-        
+
     Returns:
         研究配置字典
     """
     import yaml
-    
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f) or {}
-        # 读取 Semantic Scholar API Key（如果配置了）
-        set_semantic_scholar_api_key(config.get('semantic_scholar_api_key'))
-        return config
-    except Exception as e:
-        logger.error("Error loading config: %s", e)
-        set_semantic_scholar_api_key()
-        # 返回默认配置
-        return {
-            "research_domains": {
-                "大模型": {
-                    "keywords": [
-                        "pre-training", "foundation model", "model architecture",
-                        "large language model", "LLM", "transformer"
-                    ],
-                    "arxiv_categories": ["cs.AI", "cs.LG", "cs.CL"],
-                    "priority": 5
-                }
-            },
-            "excluded_keywords": ["3D", "review", "workshop", "survey"]
-        }
+
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f) or {}
+
+    # 读取 Semantic Scholar API Key（如果配置了）
+    set_semantic_scholar_api_key(config.get('semantic_scholar_api_key'))
+
+    research_domains = config.get('research_domains')
+    if not isinstance(research_domains, dict) or not research_domains:
+        raise ValueError(
+            f"Invalid preference config: 'research_domains' is required and must be a non-empty mapping ({config_path})"
+        )
+
+    return config
 
 
 def set_semantic_scholar_api_key(api_key: Optional[str] = None) -> Optional[str]:
@@ -530,13 +525,109 @@ def search_semantic_scholar_hot_papers(
     return sorted_papers[:top_k]
 
 
+def search_hot_papers_from_openalex(
+    query: str,
+    start_date: datetime,
+    end_date: datetime,
+    top_k: int = 20,
+    max_retries: int = 3,
+) -> List[Dict]:
+    """使用 OpenAlex 作为 Semantic Scholar 的兜底热度来源。"""
+    filter_expr = (
+        f"from_publication_date:{start_date.strftime('%Y-%m-%d')},"
+        f"to_publication_date:{end_date.strftime('%Y-%m-%d')}"
+    )
+    params = {
+        'search': query,
+        'filter': ''.join(filter_expr),
+        'per-page': min(max(top_k * 3, 20), 100),
+        'sort': 'cited_by_count:desc',
+    }
+    request_url = f"{OPENALEX_API_URL}?{urllib.parse.urlencode(params)}"
+    logger.info("[OpenAlex] Query: '%s'", query)
+
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen(request_url, timeout=60) as response:
+                data = json.loads(response.read().decode('utf-8'))
+            results = data.get('results', []) if isinstance(data, dict) else []
+            papers = []
+            for item in results:
+                title = item.get('title')
+                abstract_index = item.get('abstract_inverted_index') or {}
+                if not title:
+                    continue
+
+                abstract = ''
+                if abstract_index:
+                    terms_by_pos = []
+                    for term, positions in abstract_index.items():
+                        for pos in positions:
+                            terms_by_pos.append((pos, term))
+                    terms_by_pos.sort(key=lambda x: x[0])
+                    abstract = ' '.join(term for _, term in terms_by_pos)
+
+                authors = []
+                affiliations = []
+                for authorship in item.get('authorships', []) or []:
+                    author = authorship.get('author') or {}
+                    display_name = author.get('display_name')
+                    if display_name:
+                        authors.append(display_name)
+                    for institution in authorship.get('institutions', []) or []:
+                        inst_name = institution.get('display_name')
+                        if inst_name and inst_name not in affiliations:
+                            affiliations.append(inst_name)
+
+                arxiv_id = None
+                primary_loc = item.get('primary_location') or {}
+                landing_page_url = primary_loc.get('landing_page_url') or item.get('ids', {}).get('openalex')
+                doi = item.get('doi')
+                if landing_page_url:
+                    match = re.search(r'arxiv\.org/(abs|pdf)/(\d{4}\.\d+)', landing_page_url)
+                    if match:
+                        arxiv_id = match.group(2)
+
+                papers.append({
+                    'title': title.strip(),
+                    'abstract': abstract.strip(),
+                    'publicationDate': item.get('publication_date') or str(item.get('publication_year') or ''),
+                    'citationCount': item.get('cited_by_count') or 0,
+                    'influentialCitationCount': item.get('cited_by_count') or 0,
+                    'authors': authors,
+                    'affiliations': affiliations,
+                    'externalIds': {
+                        'ArXiv': arxiv_id,
+                        'DOI': doi,
+                        'OpenAlex': item.get('id'),
+                    },
+                    'arxiv_id': arxiv_id,
+                    'url': landing_page_url,
+                    'source': 'openalex',
+                    'hot_score': item.get('cited_by_count') or 0,
+                })
+
+            logger.info("[OpenAlex] Found %d valid papers, returning top %d", len(papers), top_k)
+            return papers[:top_k]
+        except Exception as e:
+            logger.warning("[OpenAlex] Error (attempt %d/%d): %s", attempt + 1, max_retries, e)
+            if attempt < max_retries - 1:
+                wait_time = (2 ** attempt) * 2
+                time.sleep(wait_time)
+            else:
+                logger.error("[OpenAlex] Failed after %d attempts", max_retries)
+                return []
+
+    return []
+
+
 def search_hot_papers_from_categories(
     categories: List[str],
     start_date: datetime,
     end_date: datetime,
     top_k_per_category: int = 5,
     config: Optional[Dict] = None
-) -> List[Dict]:
+) -> Tuple[List[Dict], Dict[str, Any]]:
     """
     为多个 arXiv 分类搜索高影响力论文
 
@@ -548,10 +639,16 @@ def search_hot_papers_from_categories(
         config: 研究配置（用于提取用户自定义关键词）
 
     Returns:
-        合并后的高影响力论文列表
+        (合并后的高影响力论文列表, 搜索状态)
     """
     all_hot_papers = []
     seen_arxiv_ids = set()
+    status = {
+        'enabled': True,
+        'source': 'none',
+        'degraded': False,
+        'reason': 'no_results',
+    }
 
     # 从配置中提取用户自定义的搜索关键词（更精准）
     user_queries = []
@@ -578,36 +675,58 @@ def search_hot_papers_from_categories(
             unique_queries.append(q)
 
     for query in unique_queries:
-        
+        source_used = None
         papers = search_semantic_scholar_hot_papers(
             query=query,
             start_date=start_date,
             end_date=end_date,
             top_k=top_k_per_category
         )
-        
+        if papers:
+            source_used = 'semantic_scholar'
+        else:
+            papers = search_hot_papers_from_openalex(
+                query=query,
+                start_date=start_date,
+                end_date=end_date,
+                top_k=top_k_per_category,
+            )
+            if papers:
+                source_used = 'openalex'
+                status['degraded'] = True
+                status['reason'] = 's2_failed_or_empty'
+
+        if source_used and status['source'] == 'none':
+            status['source'] = source_used
+            if source_used == 'semantic_scholar':
+                status['reason'] = 'ok'
+
         # 去重（基于 arXiv ID）
         for p in papers:
             # 安全地从 externalIds 字典中提取 ArXiv 编号
             arxiv_id = p.get("externalIds", {}).get("ArXiv") if p.get("externalIds") else None
-            
+            if not arxiv_id:
+                arxiv_id = p.get('arxiv_id')
+
             # 统一写入 arxiv_id 字段，方便最后 Step 3 的全局去重
             p["arxiv_id"] = arxiv_id
-            
+
             if arxiv_id and arxiv_id not in seen_arxiv_ids:
                 seen_arxiv_ids.add(arxiv_id)
                 all_hot_papers.append(p)
             elif not arxiv_id:
                 # 没有 arXiv ID 的也保留（可能是其他来源的论文）
                 all_hot_papers.append(p)
-        
+
         if query != unique_queries[-1]:
             time.sleep(max(S2_CATEGORY_REQUEST_INTERVAL, get_s2_request_interval()))
-    
+
     # 最终按影响力引用数排序
     all_hot_papers.sort(key=lambda x: x.get("influentialCitationCount", 0), reverse=True)
-    
-    return all_hot_papers
+    if not all_hot_papers:
+        status['source'] = 'none'
+        status['degraded'] = True
+    return all_hot_papers, status
 
 
 def parse_arxiv_xml(xml_content: str) -> List[Dict]:
@@ -965,8 +1084,8 @@ def filter_and_score_papers(
             paper, domains, excluded_keywords
         )
 
-        # 如果相关性为0，跳过
-        if relevance == 0:
+        # 如果相关性低于阈值，跳过
+        if relevance < MIN_RELEVANCE_THRESHOLD:
             continue
 
         # 计算新近性
@@ -1030,6 +1149,11 @@ def filter_and_score_papers(
             'quality': round(quality, 2),
             'recommendation': recommendation_score
         }
+        paper['selection_reason'] = {
+            'matched_domain': matched_domain,
+            'matched_keywords': matched_keywords,
+            'relevance_threshold': MIN_RELEVANCE_THRESHOLD,
+        }
         paper['matched_domain'] = matched_domain
         paper['matched_keywords'] = matched_keywords
         paper['is_hot_paper'] = is_hot_paper_batch
@@ -1040,6 +1164,28 @@ def filter_and_score_papers(
     scored_papers.sort(key=lambda x: x['scores']['recommendation'], reverse=True)
 
     return scored_papers
+
+
+def resolve_categories_from_config(config: Dict) -> List[str]:
+    """从 preference 配置聚合 arXiv categories。"""
+    domains = config.get('research_domains', {})
+    categories: List[str] = []
+    seen = set()
+
+    if not isinstance(domains, dict):
+        return categories
+
+    for domain_config in domains.values():
+        if not isinstance(domain_config, dict):
+            continue
+        for cat in domain_config.get('arxiv_categories', []) or []:
+            cat_str = str(cat).strip()
+            if not cat_str or cat_str in seen:
+                continue
+            seen.add(cat_str)
+            categories.append(cat_str)
+
+    return categories
 
 
 def main():
@@ -1063,8 +1209,8 @@ def main():
     parser.add_argument('--target-date', type=str, default=None,
                         help='Target date (YYYY-MM-DD) for filtering')
     parser.add_argument('--categories', type=str,
-                        default='cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO',
-                        help='Comma-separated list of arXiv categories')
+                        default=None,
+                        help='Comma-separated list of arXiv categories (optional; default derives from preference config)')
     parser.add_argument('--skip-hot-papers', action='store_true',
                         help='Skip searching hot papers from Semantic Scholar')
 
@@ -1082,7 +1228,12 @@ def main():
         return 1
 
     logger.info("Loading config from: %s", args.config)
-    config = load_research_config(args.config)
+    try:
+        config = load_research_config(args.config)
+    except Exception as e:
+        logger.error("Failed to load preference config: %s", e)
+        return 1
+
     logger.info(
         "Semantic Scholar API key: %s",
         "configured" if S2_API_KEY else "not configured",
@@ -1106,12 +1257,25 @@ def main():
     logger.info("  Recent 30 days: %s to %s", window_30d_start.date(), window_30d_end.date())
     logger.info("  Past year (31-365 days): %s to %s", window_1y_start.date(), window_1y_end.date())
 
-    # 解析分类
-    categories = args.categories.split(',')
+    # 解析分类：默认从 preference 配置聚合，CLI 显式传入时覆盖
+    if args.categories:
+        categories = [c.strip() for c in args.categories.split(',') if c.strip()]
+    else:
+        categories = resolve_categories_from_config(config)
+
+    if not categories:
+        logger.error("No arXiv categories resolved. Please set research_domains.*.arxiv_categories in preference.md or pass --categories.")
+        return 1
 
     all_scored_papers = []
     recent_papers = []
     hot_papers = []
+    hot_search_status = {
+        'enabled': not args.skip_hot_papers,
+        'source': 'none',
+        'degraded': False,
+        'reason': 'skipped_by_user' if args.skip_hot_papers else 'not_run',
+    }
 
     # ========== 第一步：搜索最近30天的论文（arXiv）==========
     logger.info("=" * 70)
@@ -1143,7 +1307,7 @@ def main():
         logger.info("Step 2: Searching hot papers (past year) from Semantic Scholar")
         logger.info("=" * 70)
         
-        hot_papers = search_hot_papers_from_categories(
+        hot_papers, hot_search_status = search_hot_papers_from_categories(
             categories=categories,
             start_date=window_1y_start,
             end_date=window_1y_end,
@@ -1218,6 +1382,7 @@ def main():
                 'end': window_1y_end.strftime('%Y-%m-%d')
             }
         },
+        'hot_search_status': hot_search_status,
         'total_recent': len(recent_papers),
         'total_hot': len(hot_papers),
         'total_unique': len(unique_papers),

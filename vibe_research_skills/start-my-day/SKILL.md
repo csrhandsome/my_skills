@@ -10,11 +10,11 @@ This skill supports both Chinese and English reports. The language is determined
 - **Chinese (default)**: Set `language: "zh"` in config
 - **English**: Set `language: "en"` in config
 
-The config file should be located at: `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`
+The config file should be located at: `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
 
 ## Language Detection
 
-At the start of execution, first check whether the preference file exists. If it does not exist, ask the user what research directions they want, create a minimal `$OBSIDIAN_VAULT_PATH/research_preference/preference.md`, and then continue the workflow. After that, read the file to detect the language setting:
+At the start of execution, first check whether the preference file exists. If it does not exist, ask the user what research directions they want, create a minimal `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`, and then continue the workflow. After that, read the file to detect the language setting:
 
 ```bash
 # Resolve OBSIDIAN_VAULT_PATH if not set in the current session
@@ -24,7 +24,7 @@ if [ -z "$OBSIDIAN_VAULT_PATH" ]; then
     [ -f "$HOME/.bash_profile" ] && source "$HOME/.bash_profile" 2>/dev/null || true
 fi
 
-PREFERENCE_FILE="$OBSIDIAN_VAULT_PATH/research_preference/preference.md"
+PREFERENCE_FILE="$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md"
 
 # If preference file is missing, ask the user for research directions,
 # create a minimal preference file, and continue
@@ -71,7 +71,7 @@ Then use this language setting throughout the workflow:
    - 确定当前日期（YYYY-MM-DD格式）
 
 2. **读取研究配置**
-   - 先检查 `$OBSIDIAN_VAULT_PATH/research_preference/preference.md` 是否存在
+   - 先检查 `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md` 是否存在
    - 如果不存在，先询问用户想看什么方向的文章（如 LLM agents、多模态、机器人、HCI 等）
    - 根据用户回答创建最小可用的 `preference.md`
    - 创建后继续搜索，不要中断整个流程
@@ -79,7 +79,7 @@ Then use this language setting throughout the workflow:
    - 提取：关键词、类别和优先级
 
 3. **扫描现有笔记构建索引**
-   - 扫描 `20_Research/Papers/` 目录下的所有 `.md` 文件
+   - 扫描 `vibe_research/20_Research/Papers/` 目录下的所有 `.md` 文件
    - 提取笔记标题（从文件名和frontmatter的title字段）
    - 构建关键词到笔记路径的映射表，用于后续自动链接
    - 优先使用 frontmatter 中的 title 字段，其次使用文件名
@@ -113,11 +113,15 @@ Then use this language setting throughout the workflow:
 # 首先切换到 skill 目录，然后执行脚本
 cd "$SKILL_DIR"
 uv run python scripts/search_arxiv.py \
-  --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
+  --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
   --output arxiv_filtered.json \
   --max-results 200 \
-  --top-n 10 \
-  --categories "cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO"
+  --top-n 10
+
+# 默认会从 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+# 仅在你要临时覆盖时才加：
+#   --categories "cs.AI,cs.LG,..."
+# 若 preference.md 缺少 research_domains 或格式不合法，脚本会直接报错退出（不再静默回退默认领域）
 ```
 
 **脚本功能**：
@@ -216,9 +220,9 @@ cat arxiv_filtered.json
 
 1. **创建推荐笔记文件**
    - 文件名（根据语言设置）：
-     - 中文（`language: "zh"`）：`10_Daily/YYYY-MM-DD论文推荐.md`
-     - 英文（`language: "en"`）：`10_Daily/YYYY-MM-DD-paper-recommendations.md`
-   - 使用变量：`10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（其中 `NOTE_SUFFIX` 在语言检测阶段已设置）
+     - 中文（`language: "zh"`）：`vibe_research/10_Daily/YYYY-MM-DD论文推荐.md`
+     - 英文（`language: "en"`）：`vibe_research/10_Daily/YYYY-MM-DD-paper-recommendations.md`
+   - 使用变量：`vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（其中 `NOTE_SUFFIX` 在语言检测阶段已设置）
    - 必须包含属性：
      - `keywords`: 当天推荐论文的关键词（逗号分隔，从论文标题和摘要中提取）
      - `tags`: ["llm-generated", "daily-paper-recommend"]
@@ -228,7 +232,7 @@ cat arxiv_filtered.json
    - **一般推荐论文**：其他论文
 
 3. **检查论文是否已有笔记**
-   - 搜索 `20_Research/Papers/` 目录
+   - 搜索 `vibe_research/20_Research/Papers/` 目录
    - 查找是否有该论文的详细笔记
    - 如果已有笔记：简略写，引用已有笔记
    - 如果无笔记：
@@ -313,6 +317,14 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **Key Results**: [most important results from abstract]
 
+**Implementation Study TODOs**:
+- [ ] [code learning task 1]
+  - [ ] [optional subtask]
+- [ ] [code learning task 2]
+
+**Your Takeaways**:
+> Waiting for your notes. Looking forward to your takeaways after reading.
+
 ---
 ```
 
@@ -334,8 +346,52 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **关键结果**：[从摘要中提取的最重要结果]
 
+**代码学习待办**：
+- [ ] [代码学习点1]
+  - [ ] [可选子任务]
+- [ ] [代码学习点2]
+
+**读后心得 / 你的总结**：
+> 等待记录心得，期待您的输出。读完后把最想复现的一点写在这里。
+
 ---
 ```
+
+#### 4.2.2.1 每篇论文后的待办模块
+
+每篇论文条目在正文末尾都必须追加一个“代码学习待办”模块，用 task list 格式输出，帮助用户把阅读动作转成可执行的代码学习路线。
+
+**待办生成要求：**
+- **每篇都要有**：无论是否已有详细笔记、是否进入前3篇，都必须保留该模块
+- **聚焦代码学习**：待办应围绕模型结构、训练/推理流程、关键算法、实验实现、工程设计或复现步骤，不要只写泛泛的“读论文”“了解背景”
+- **顶层最多 4 个大点**：建议 2-4 个顶层待办；信息不足时宁可少写，也不要凑数
+- **允许小点展开**：每个顶层待办下面可以有 0-3 个子点，用来补充要看的模块、脚本、指标或验证动作
+- **动作导向**：优先使用“定位 / 理解 / 复现 / 对比 / 实现 / 验证 / 拆解”等动词开头，确保能直接执行
+- **基于论文内容生成**：待办要从标题、摘要、核心贡献、关键结果、图片和详细报告中提炼，避免凭空编造具体仓库结构或不存在的代码接口
+
+**推荐方向示例：**
+- 拆解模型中的核心模块与数据流
+- 梳理训练、推理或检索增强流程
+- 复现最关键的损失函数、采样策略或优化技巧
+- 对照 baseline 分析新增模块到底改进了什么
+- 找出最值得实现的 ablation / evaluation 逻辑
+
+#### 4.2.2.2 每篇论文后的读后心得区域
+
+每篇论文条目在“代码学习待办”之后，都必须保留一个专门给用户手写总结的区域，用来记录读后心得、启发、疑问或后续行动。
+
+**心得区域要求：**
+- **每篇都要有**：无论论文是否已有笔记、是否位于前3篇，这个区域都必须出现
+- **明确归属给用户**：该区域是用户读完后的个人输出区，不应被系统总结替代
+- **空白时显示占位文案**：如果用户还没填写，就放一条轻松、有邀请感的占位语
+- **填写后可直接覆盖占位语**：用户后续可以直接删除或替换占位文案，写入自己的总结
+- **重跑时保护用户内容**：如果该区域已经不是默认占位语，而是用户真实填写的内容，重新生成同一天笔记时不要覆盖
+- **语气要有一点趣味**：占位语可以温和、灵动一点，避免机械式的“暂无内容”
+
+**占位文案示例：**
+- `等待记录心得，期待您的输出。读完后把最想复现的一点写在这里。`
+- `这块先替读完后的你占个座，欢迎回来补上今天最有意思的收获。`
+- `灵感留言区已预留，等你把一句总结或一个好问题放进来。`
 
 **重要格式规则**：
 - **Wikilink 必须使用 display alias**：`[[File_Name|Display Title]]`，不要使用 bare `[[File_Name]]`（下划线会直接显示，影响阅读）
@@ -343,13 +399,13 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 arXiv API 未提供，从下载的源码包读取
 - **不要使用 `---` 作为"无数据"占位符**：使用 `--` 代替（三个短横线会被 Obsidian 解析为分隔线）
 
-#### 4.2.3 前三篇论文插入图片和调用详细分析
+#### 4.2.3 前三篇论文进行图片语义筛选和详细分析
 
-对于前3篇论文（评分最高的3篇）：
+对于前3篇论文（评分最高的3篇，作为候选图来源）：
 
 **步骤0：检查论文是否已有笔记**
 ```bash
-# 在 20_Research/Papers/ 目录中搜索已有笔记
+# 在 vibe_research/20_Research/Papers/ 目录中搜索已有笔记
 # 搜索方式：
 # 1. 按论文ID搜索（如 2602.23351）
 # 2. 按论文标题搜索（模糊匹配）
@@ -389,6 +445,13 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **核心贡献/观点**：
 ...
+
+**代码学习待办**：
+- [ ] [从已有笔记中提炼的代码学习点]
+  - [ ] [可选子任务]
+
+**读后心得 / 你的总结**：
+> 等待记录心得，期待您的输出。欢迎回来补一条最重要的理解。
 ```
 
 **如果没有笔记**：
@@ -398,7 +461,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - **机构**：[机构名称]
 - **链接**：[arXiv](链接) | [PDF](链接)
 - **来源**：[arXiv]
-- **详细报告**：[[20_Research/Papers/[domain]/[note_filename]|Short Title]] (自动生成)
+- **详细报告**：[[vibe_research/20_Research/Papers/[domain]/[note_filename]|Short Title]] (自动生成)
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
@@ -406,6 +469,13 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **核心贡献/观点**：
 ...
+
+**代码学习待办**：
+- [ ] [围绕新论文生成的代码学习点]
+  - [ ] [可选子任务]
+
+**读后心得 / 你的总结**：
+> 这里留给读完后的你。期待您的输出，写下最值得实现的一点吧。
 ```
 
 **图片格式规则（重要！）**：
@@ -415,11 +485,11 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 - Obsidian 会自动在 vault 中搜索匹配的文件名，无需写完整路径
 
 **详细报告说明**：
-- 报告路径：`20_Research/Papers/[论文分类]/[note_filename].md`
+- 报告路径：`vibe_research/20_Research/Papers/[论文分类]/[note_filename].md`
 - **重要**：使用 JSON 中的 `note_filename` 字段拼接 wikilink
-- **必须使用 display alias**：`[[20_Research/Papers/[domain]/[note_filename]|Short Title]]`
-  - 正确：`[[20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting|Hypothesis-Conditioned Query Rewriting]]`
-  - 错误：`[[20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting_for_Decision-Useful_Retrieval]]`（下划线直接显示，不美观）
+- **必须使用 display alias**：`[[vibe_research/20_Research/Papers/[domain]/[note_filename]|Short Title]]`
+  - 正确：`[[vibe_research/20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting|Hypothesis-Conditioned Query Rewriting]]`
+  - 错误：`[[vibe_research/20_Research/Papers/大模型/Hypothesis-Conditioned_Query_Rewriting_for_Decision-Useful_Retrieval]]`（下划线直接显示，不美观）
 - 详细报告由 `paper-analyze` 自动生成
 
 **机构/Affiliation 提取**：
@@ -444,8 +514,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **注意**：
@@ -457,15 +527,24 @@ uv run python scripts/link_keywords.py \
 
 - **搜索范围扩大**：搜索近一个月 + 近一年热门论文
 - **综合推荐评分**：结合相关性、新近性、热门度、质量四个维度
-- **文件名以日期**：保持 `10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md` 格式（中文：`论文推荐`，英文：`paper-recommendations`）
+- **文件名以日期**：保持 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md` 格式（中文：`论文推荐`，英文：`paper-recommendations`）
 - **添加今日概览**：在推荐笔记开头添加"## 今日概览"部分，总结今日论文的主要研究方向、总体趋势、质量分布、研究热点和阅读建议
 - **按评分排序**：所有论文按推荐评分从高到低排列
+- **每篇论文都要有待办模块**：
+  - 在每篇论文末尾追加“代码学习待办 / Implementation Study TODOs”
+  - 顶层待办最多 4 个，且必须是代码学习或复现导向
+  - 每个顶层待办可带少量子点，补充具体脚本、模块、指标或验证步骤
+- **每篇论文都要有读后心得区域**：
+  - 在“代码学习待办”后追加“读后心得 / 你的总结”区域
+  - 空白时显示一句有邀请感的占位文案，如“等待记录心得，期待您的输出”
+  - 如果用户已经手写填写内容，重新生成时不要覆盖这块
 - **前3篇特殊处理**：
   - 论文名称用 wikilink 格式：`[[论文名字]]`
-  - 自动提取第一张图片并插入
+  - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
   - 自动调用 `paper-analyze` 生成详细报告
   - 在"详细报告"字段显示 wikilink 关联
-- **其他论文**：只写基本信息，不插入图片
+- **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+- **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
 - **保持快速**：让用户快速了解当日推荐
 - **避免重复**：检查已推荐论文
 - **自动关键词链接**：
@@ -486,10 +565,10 @@ uv run python scripts/link_keywords.py \
   - 所有论文统一格式
   - 前3篇特殊处理：
     - 论文名称用 wikilink 格式：`[[论文名字]]`
-    - 自动提取第一张图片并插入
+    - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
     - 自动调用 `paper-analyze` 生成详细报告
     - 在"详细报告"字段显示 wikilink 关联
-- **图片处理**：前3篇自动提取并插入第一张图片；不包含所有论文的图
+- **图片处理**：从前3篇候选论文中语义筛选并插入2-3张图（非机械使用第一张）
 - **详细报告**：前3篇自动生成，其他论文不生成
 - **适用**：用户每天手动触发
 - **笔记引用**：如果论文已有笔记，简略写并引用；如果分析需要引用历史笔记，也直接引用
@@ -526,7 +605,7 @@ uv run python scripts/link_keywords.py \
      --vault "$OBSIDIAN_VAULT_PATH" \
      --output existing_notes_index.json
    ```
-   - 扫描 `20_Research/Papers/` 目录
+   - 扫描 `vibe_research/20_Research/Papers/` 目录
    - 提取笔记标题和 tags
    - 构建关键词到笔记路径的映射表
 
@@ -537,12 +616,14 @@ uv run python scripts/link_keywords.py \
    # 如果有目标日期参数（如 2026-02-21），传递给 --target-date
    cd "$SKILL_DIR"
    uv run python scripts/search_arxiv.py \
-     --config "$OBSIDIAN_VAULT_PATH/research_preference/preference.md" \
+     --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
      --output arxiv_filtered.json \
      --max-results 200 \
      --top-n 10 \
-     --categories "cs.AI,cs.LG,cs.CL,cs.CV,cs.MM,cs.MA,cs.RO" \
      --target-date "{目标日期}"  # 如果用户指定了日期，替换为实际日期
+
+   # 默认按 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+   # 如需覆盖默认分类，再显式传 --categories "..."
    ```
 
 4. **读取筛选结果**
@@ -551,13 +632,22 @@ uv run python scripts/link_keywords.py \
    - 每篇论文包含：ID、标题、作者、摘要、评分、匹配领域
 
 5. **生成推荐笔记（包含关键词链接）**
-   - 创建 `10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
+   - 创建 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
    - **按评分排序**：所有论文按推荐评分从高到低排列
+   - **每篇论文追加代码学习待办**：
+     - 每篇论文都要在末尾追加“代码学习待办 / Implementation Study TODOs”模块
+     - 顶层待办最多 4 个大点，建议 2-4 个
+     - 每个大点下可追加若干子点，补充具体代码阅读、复现或验证动作
+   - **每篇论文追加读后心得区域**：
+     - 在“代码学习待办”后追加“读后心得 / 你的总结”区域
+     - 若用户尚未填写，则放置一句轻松的占位文案，例如“等待记录心得，期待您的输出”
+     - 若该区域已有用户手写内容，则重新生成时保留原内容
    - **前3篇特殊处理**：
      - 论文名称用 wikilink 格式：`[[论文名字]]`
-     - 在"一句话总结"后插入实际提取的第一张图片
+     - 在"一句话总结"后插入经语义筛选的图片（方法/架构图优先，其次关键结果图）
      - 在"详细报告"字段显示 wikilink 关联
-   - **其他论文**：只写基本信息，不插入图片
+   - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+   - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
    - **关键词自动链接**（重要！）：
      - 在生成笔记后，扫描文本中的关键词
      - 使用 `existing_notes_index.json` 进行匹配
@@ -570,7 +660,7 @@ uv run python scripts/link_keywords.py \
    # 对每篇前三论文执行以下操作
 
    # 步骤1：检查论文是否已有笔记
-   # 在 20_Research/Papers/ 目录中搜索
+   # 在 vibe_research/20_Research/Papers/ 目录中搜索
    # - 按论文ID搜索（如 2602.23351）
    # - 按论文标题搜索（模糊匹配）
    # - 按论文标题关键词搜索（如 "Pragmatics", "Reporting Bias"）
@@ -581,7 +671,7 @@ uv run python scripts/link_keywords.py \
        # 使用已有的笔记路径
        # 只提取图片（如果没有图片的话）
    else:
-       # 提取第一张图片
+       # 提取候选图片（后续做语义筛选）
        /extract-paper-images [论文ID]
 
        # 生成详细分析报告
@@ -593,7 +683,7 @@ uv run python scripts/link_keywords.py \
      - 检查是否需要提取图片（如果没有 images 目录或 images 目录为空）
      - 在推荐笔记的"详细报告"字段引用已有笔记
    - **如果没有笔记**：
-     - 提取第一张图片并保存到 vault
+     - 提取候选图片并执行语义筛选后保存到 vault
      - 生成详细的论文分析报告
      - 在推荐笔记中添加图片和详细报告链接
 
@@ -607,7 +697,7 @@ uv run python scripts/link_keywords.py \
 - Python 3.x（用于运行搜索和筛选脚本）
 - PyYAML（用于读取研究兴趣配置文件）
 - 网络连接（访问 arXiv API）
-- `20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
+- `vibe_research/20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
 - `extract-paper-images` skill（用于提取论文图片）
 - `paper-analyze` skill（用于生成详细报告）
 
@@ -627,7 +717,7 @@ uv run python scripts/link_keywords.py \
 
 位于 `scripts/scan_existing_notes.py`，功能包括：
 
-1. **扫描笔记目录**：扫描 `20_Research/Papers/` 下所有 `.md` 文件
+1. **扫描笔记目录**：扫描 `vibe_research/20_Research/Papers/` 下所有 `.md` 文件
 2. **提取笔记信息**：
    - 文件路径
    - 文件名
@@ -649,7 +739,7 @@ uv run python scripts/scan_existing_notes.py \
 {
   "notes": [
     {
-      "path": "20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md",
+      "path": "vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md",
       "filename": "BLIP_Bootstrapping-Language-Image-Pre-training.md",
       "title": "BLIP: Bootstrapping Language-Image Pre-training for Unified Vision-Language Understanding and Generation",
       "title_keywords": ["BLIP", "Bootstrapping", "Language-Image", "Pre-training", "Unified", "Vision-Language", "Understanding", "Generation"],
@@ -657,9 +747,9 @@ uv run python scripts/scan_existing_notes.py \
     }
   ],
   "keyword_to_notes": {
-    "blip": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
-    "bootstrapping": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
-    "vision-language": ["20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
+    "blip": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
+    "bootstrapping": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
+    "vision-language": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
   }
 }
 ```
@@ -714,8 +804,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：
@@ -731,7 +821,7 @@ uv run python scripts/link_keywords.py \
 在生成每日推荐笔记后，自动扫描现有笔记，将文本中的关键词（如BLIP、CLIP等）替换为wikilink（如[[BLIP]]）。
 
 **实现流程**：
-1. **扫描现有笔记**：扫描 `20_Research/Papers/` 目录
+1. **扫描现有笔记**：扫描 `vibe_research/20_Research/Papers/` 目录
    - 提取笔记的frontmatter（title、tags）
    - 从标题中提取关键词（按分隔符和常见词缀）
    - 从tags中提取关键词（按连字符分割）
@@ -759,8 +849,8 @@ uv run python scripts/scan_existing_notes.py \
 # 步骤3：链接关键词（新增步骤）
 uv run python scripts/link_keywords.py \
   --index existing_notes_index.json \
-  --input "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
-  --output "10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
+  --input "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md" \
+  --output "vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md"
 ```
 
 **关键特性**：

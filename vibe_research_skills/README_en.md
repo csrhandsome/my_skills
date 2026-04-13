@@ -158,7 +158,8 @@ research_domains:
 
 Then copy the modified `config.yaml` to your Vault:
 ```bash
-cp config.yaml "$OBSIDIAN_VAULT_PATH/99_System/Config/research_interests.yaml"
+mkdir -p "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference"
+cp config.yaml "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md"
 ```
 
 ### Step 3 (Optional): Override Paths via CLI Parameters
@@ -168,7 +169,7 @@ If you don't want to set environment variables, you can specify paths via parame
 If `uv` is available, these commands should also be run as `uv run python ...` inside the initialized environment under `$OBSIDIAN_VAULT_PATH`, and additional dependencies should be installed with `uv add <package>`.
 
 ```bash
-uv run python scripts/search_arxiv.py --config "/your/path/research_interests.yaml"
+uv run python scripts/search_arxiv.py --config "/your/path/vibe_research/research_preference/preference.md"
 uv run python scripts/scan_existing_notes.py --vault "/your/obsidian/vault"
 uv run python scripts/generate_note.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --authors "Author" --domain "LLM" --language "en"
 uv run python scripts/update_graph.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --domain "LLM" --language "en"
@@ -190,18 +191,19 @@ Your Obsidian Vault needs to contain:
 
 ```
 yourVault/
-├── 10_Daily/                    # Daily recommendation notes (auto-created)
-│   └── YYYY-MM-DD-Paper-Recommendations.md
-├── 20_Research/
-│   └── Papers/                  # Paper detailed notes directory
-│       ├── LLM/
-│       │   └── Paper-Title.md
-│       │       └── images/      # Paper images
-│       ├── Multimodal/
-│       └── Agent/
-└── 99_System/
-    └── Config/
-        └── research_interests.yaml  # Research interests config
+└── vibe_research/
+    ├── 10_Daily/                    # Daily recommendation notes (auto-created)
+    │   └── YYYY-MM-DD-Paper-Recommendations.md
+    ├── 20_Research/
+    │   ├── Papers/                  # Paper detailed notes directory
+    │   │   ├── LLM/
+    │   │   │   └── Paper-Title.md
+    │   │   │       └── images/      # Paper images
+    │   │   ├── Multimodal/
+    │   │   └── Agent/
+    │   └── PaperGraph/              # Knowledge graph data
+    └── research_preference/
+        └── preference.md            # Research preferences config
 ```
 
 ## Usage
@@ -217,7 +219,7 @@ start my day
 This will:
 1. Search high-quality papers from the last month and past year
 2. Filter and score based on your research interests
-3. Generate daily recommendation notes (saved to `10_Daily/`)
+3. Generate daily recommendation notes (saved to `vibe_research/10_Daily/`)
 4. Auto-generate detailed analysis for top 3 papers
 5. Extract paper images and insert into notes
 6. Auto-link keywords to existing notes
@@ -284,12 +286,12 @@ evil-read-arxiv/
 │       └── extract_images.py # Image extraction script
 ├── paper-search/             # Paper search skill
 │   └── SKILL.md
-└── conf-papers/              # Conference paper recommendation skill
-    ├── SKILL.md
-    ├── computer_conf_papers.yaml
-    ├── hci_conf_papers.yaml
-    └── scripts/
-        └── search_conf_papers.py
+├── conf-papers/              # Conference paper recommendation skill
+│   ├── SKILL.md
+│   ├── computer_conf_papers.yaml
+│   ├── hci_conf_papers.yaml
+│   └── scripts/
+│       └── search_conf_papers.py
 ```
 
 ## Scoring Mechanism
@@ -343,7 +345,7 @@ A: You can modify the `COMMON_WORDS` set in `start-my-day/scripts/link_keywords.
 ### Q: "Papers directory not found" error?
 A:
 1. Check if `OBSIDIAN_VAULT_PATH` environment variable is set correctly
-2. Confirm the directory structure is correct in your Obsidian Vault (20_Research/Papers/)
+2. Confirm the directory structure is correct in your Obsidian Vault (`vibe_research/20_Research/Papers/`)
 
 ### Q: "Vault path not specified" error?
 A: Set `OBSIDIAN_VAULT_PATH` environment variable, or specify path via `--vault`/`--config` parameters when calling scripts.

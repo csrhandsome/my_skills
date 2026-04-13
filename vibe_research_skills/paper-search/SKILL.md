@@ -33,7 +33,7 @@ You are the Paper Searcher for OrbitOS.
 
 ### 2.1 搜索策略
 
-使用Grep在`20_Research/Papers/`目录中搜索：
+使用Grep在`vibe_research/20_Research/Papers/`目录中搜索：
 - 标题搜索：在所有文件中搜索标题
 - 作者搜索：搜索frontmatter的authors字段
 - 关键词搜索：搜索文档内容
@@ -43,13 +43,13 @@ You are the Paper Searcher for OrbitOS.
 
 ```bash
 # 按标题搜索
-grep -r -i "查询关键词" "20_Research/Papers/ --include="*.md"
+grep -r -i --include="*.md" "查询关键词" "vibe_research/20_Research/Papers/"
 
 # 按作者搜索
-grep -r "作者姓名" "20_Research/Papers/ --include="*.md" | grep -i "author: 作者姓名"
+grep -r -i --include="*.md" "作者姓名" "vibe_research/20_Research/Papers/" | grep -i "author: 作者姓名"
 
 # 按领域搜索
-grep -r "关键词" "20_Research/Papers/领域/"
+grep -r "关键词" "vibe_research/20_Research/Papers/领域/"
 ```
 
 ## 步骤3：处理搜索结果

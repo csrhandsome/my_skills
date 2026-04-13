@@ -1,7 +1,7 @@
 # evil-read-arxiv Configuration File Example
 # Copy this file to config.yaml and modify for your own setup
 # Or set OBSIDIAN_VAULT_PATH environment variable and place config.yaml at:
-#   $OBSIDIAN_VAULT_PATH/99_System/Config/research_interests.yaml
+#   $OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md
 
 # Language setting (zh/en)
 # - "zh": Chinese reports
@@ -14,8 +14,8 @@ language: "en"
 # Option 2: Set path directly below
 vault_path: "/path/to/your/obsidian-vault"
 
-# Papers directory relative to vault (optional, default: 20_Research/Papers)
-papers_dir: "20_Research/Papers"
+# Papers directory relative to vault (optional, default: vibe_research/20_Research/Papers)
+papers_dir: "vibe_research/20_Research/Papers"
 
 # Semantic Scholar API Key (optional, reduces 429 rate limiting)
 # Free registration: https://www.semanticscholar.org/product/api#api-key
