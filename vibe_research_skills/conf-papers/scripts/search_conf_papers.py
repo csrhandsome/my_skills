@@ -5,18 +5,18 @@
 支持 CVPR/ICCV/ECCV/ICLR/AAAI/NeurIPS/ICML 以及 CHI/UIST/CSCW/IUI/UbiComp/DIS 等顶会
 """
 
+import argparse
+import hashlib
 import json
+import logging
 import os
 import re
 import sys
 import time
-import hashlib
-import logging
-import argparse
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Iterable, Any
-import urllib.request
 import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,13 @@ def title_to_note_filename(title: str) -> str:
     使用与 paper-analyze/scripts/generate_note.py 完全相同的规则，
     确保 conf-papers 生成的 wikilink 路径能正确指向 paper-analyze 创建的文件。
     """
-    filename = re.sub(r'[ /\\:*?"<>|]+', '_', title).strip('_')
+    filename = re.sub(r'[ /\\:*?"<>|]+', "_", title).strip("_")
     return filename
+
 
 try:
     import requests
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -41,19 +43,21 @@ except ImportError:
 # 复用 search_arxiv.py 的评分函数
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_START_MY_DAY_SCRIPTS = os.path.join(os.path.dirname(os.path.dirname(_SCRIPT_DIR)), 'start-my-day', 'scripts')
+_START_MY_DAY_SCRIPTS = os.path.join(
+    os.path.dirname(os.path.dirname(_SCRIPT_DIR)), "start-my-day", "scripts"
+)
 if _START_MY_DAY_SCRIPTS not in sys.path:
     sys.path.insert(0, _START_MY_DAY_SCRIPTS)
 
 from search_arxiv import (
-    calculate_relevance_score,
-    calculate_quality_score,
-    SCORE_MAX,
-    RELEVANCE_TITLE_KEYWORD_BOOST,
-    RELEVANCE_SUMMARY_KEYWORD_BOOST,
     RELEVANCE_CATEGORY_MATCH_BOOST,
+    RELEVANCE_SUMMARY_KEYWORD_BOOST,
+    RELEVANCE_TITLE_KEYWORD_BOOST,
     S2_REQUEST_TIMEOUT,
+    SCORE_MAX,
     build_s2_headers,
+    calculate_quality_score,
+    calculate_relevance_score,
     semantic_scholar_request,
     set_semantic_scholar_api_key,
 )
@@ -68,21 +72,44 @@ from search_arxiv import (
 DBLP_VENUES = {
     "CVPR": {"toc": "conf/cvpr", "toc_name": "cvpr{year}"},
     "ICCV": {"toc": "conf/iccv", "toc_name": "iccv{year}"},
-    "ECCV": {"toc": "conf/eccv", "toc_name": None, "venue_query": "ECCV"},  # ECCV toc 不可用，用 venue+year
+    "ECCV": {
+        "toc": "conf/eccv",
+        "toc_name": None,
+        "venue_query": "ECCV",
+    },  # ECCV toc 不可用，用 venue+year
     "ICLR": {"toc": "conf/iclr", "toc_name": "iclr{year}"},
     "AAAI": {"toc": "conf/aaai", "toc_name": "aaai{year}"},
     "NeurIPS": {"toc": "conf/nips", "toc_name": "neurips{year}"},
     "ICML": {"toc": "conf/icml", "toc_name": "icml{year}"},
-    "MICCAI": {"toc": "conf/miccai", "toc_name": None, "venue_query": "MICCAI"},  # MICCAI toc 不稳定，用 venue+year
+    "MICCAI": {
+        "toc": "conf/miccai",
+        "toc_name": None,
+        "venue_query": "MICCAI",
+    },  # MICCAI toc 不稳定，用 venue+year
     "ACL": {"toc": "conf/acl", "toc_name": "acl{year}"},
-    "EMNLP": {"toc": "conf/emnlp", "toc_name": None, "venue_query": "EMNLP"},  # EMNLP toc 不稳定，用 venue+year
-    "CHI": {"toc": "conf/chi", "toc_name": "chi{year}",
-            "venue_query": "CHI Conference on Human Factors in Computing Systems"},
+    "EMNLP": {
+        "toc": "conf/emnlp",
+        "toc_name": None,
+        "venue_query": "EMNLP",
+    },  # EMNLP toc 不稳定，用 venue+year
+    "CHI": {
+        "toc": "conf/chi",
+        "toc_name": "chi{year}",
+        "venue_query": "CHI Conference on Human Factors in Computing Systems",
+    },
     "UIST": {"toc": "conf/uist", "toc_name": "uist{year}"},
     "CSCW": {"toc": "conf/cscw", "toc_name": "cscw{year}", "venue_query": "CSCW"},
     "IUI": {"toc": "conf/iui", "toc_name": "iui{year}"},
-    "UbiComp": {"toc": "conf/ubicomp", "toc_name": "ubicomp{year}", "venue_query": "UbiComp"},
-    "DIS": {"toc": "conf/dis", "toc_name": "dis{year}", "venue_query": "Designing Interactive Systems"},
+    "UbiComp": {
+        "toc": "conf/ubicomp",
+        "toc_name": "ubicomp{year}",
+        "venue_query": "UbiComp",
+    },
+    "DIS": {
+        "toc": "conf/dis",
+        "toc_name": "dis{year}",
+        "venue_query": "Designing Interactive Systems",
+    },
 }
 
 # 会议 -> arXiv 分类映射（用于相关性评分中的分类匹配加分）
@@ -125,9 +152,9 @@ PRESET_ALIASES = {
 
 # 评分权重（去掉新近性维度，因为年份由用户指定）
 WEIGHTS_CONF = {
-    'relevance': 0.40,
-    'popularity': 0.40,
-    'quality': 0.20,
+    "relevance": 0.40,
+    "popularity": 0.40,
+    "quality": 0.20,
 }
 
 # 热门度：高影响力引用满分基准
@@ -148,7 +175,10 @@ DBLP_API_URL = "https://dblp.org/search/publ/api"
 # DBLP 搜索
 # ---------------------------------------------------------------------------
 
-def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, max_retries: int = 3) -> List[Dict]:
+
+def search_dblp_conference(
+    venue_key: str, year: int, max_results: int = 1000, max_retries: int = 3
+) -> List[Dict]:
     """
     调用 DBLP Search API 搜索指定会议和年份的论文
 
@@ -194,19 +224,29 @@ def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, m
             }
 
             url = f"{DBLP_API_URL}?{urllib.parse.urlencode(params)}"
-            logger.info("[DBLP] Searching %s %d (offset=%d, query=%s)", venue_key, year, hits_fetched, query_str[:60])
+            logger.info(
+                "[DBLP] Searching %s %d (offset=%d, query=%s)",
+                venue_key,
+                year,
+                hits_fetched,
+                query_str[:60],
+            )
 
             success = False
             for attempt in range(max_retries):
                 try:
                     if HAS_REQUESTS:
-                        resp = requests.get(url, headers={"User-Agent": "ConfPapers/1.0"}, timeout=60)
+                        resp = requests.get(
+                            url, headers={"User-Agent": "ConfPapers/1.0"}, timeout=60
+                        )
                         resp.raise_for_status()
                         data = resp.json()
                     else:
-                        req = urllib.request.Request(url, headers={"User-Agent": "ConfPapers/1.0"})
+                        req = urllib.request.Request(
+                            url, headers={"User-Agent": "ConfPapers/1.0"}
+                        )
                         with urllib.request.urlopen(req, timeout=60) as response:
-                            data = json.loads(response.read().decode('utf-8'))
+                            data = json.loads(response.read().decode("utf-8"))
 
                     result = data.get("result", {})
                     hits = result.get("hits", {})
@@ -214,9 +254,19 @@ def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, m
                     hit_list = hits.get("hit", [])
 
                     if not hit_list:
-                        logger.info("[DBLP] %s %d: no more results (total=%d)", venue_key, year, total)
+                        logger.info(
+                            "[DBLP] %s %d: no more results (total=%d)",
+                            venue_key,
+                            year,
+                            total,
+                        )
                         if papers:
-                            logger.info("[DBLP] %s %d: found %d papers", venue_key, year, len(papers))
+                            logger.info(
+                                "[DBLP] %s %d: found %d papers",
+                                venue_key,
+                                year,
+                                len(papers),
+                            )
                             return papers
                         # 0 results with this query, try next
                         query_failed = True
@@ -231,7 +281,9 @@ def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, m
                         authors_info = info.get("authors", {}).get("author", [])
                         if isinstance(authors_info, dict):
                             authors_info = [authors_info]
-                        authors = [a.get("text", "") for a in authors_info if a.get("text")]
+                        authors = [
+                            a.get("text", "") for a in authors_info if a.get("text")
+                        ]
 
                         paper = {
                             "title": title,
@@ -255,13 +307,17 @@ def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, m
                     break  # 成功，退出重试循环
 
                 except Exception as e:
-                    logger.warning("[DBLP] Error (attempt %d/%d): %s", attempt + 1, max_retries, e)
+                    logger.warning(
+                        "[DBLP] Error (attempt %d/%d): %s", attempt + 1, max_retries, e
+                    )
                     if attempt < max_retries - 1:
-                        wait_time = (2 ** attempt) * 3
+                        wait_time = (2**attempt) * 3
                         logger.info("[DBLP] Retrying in %d seconds...", wait_time)
                         time.sleep(wait_time)
                     else:
-                        logger.warning("[DBLP] Query failed for %s: %s", venue_key, query_str[:60])
+                        logger.warning(
+                            "[DBLP] Query failed for %s: %s", venue_key, query_str[:60]
+                        )
                         query_failed = True
 
             if query_failed:
@@ -280,7 +336,9 @@ def search_dblp_conference(venue_key: str, year: int, max_results: int = 1000, m
     return []
 
 
-def search_all_conferences(year: int, venues: List[str], max_per_venue: int = 1000) -> List[Dict]:
+def search_all_conferences(
+    year: int, venues: List[str], max_per_venue: int = 1000
+) -> List[Dict]:
     """
     遍历所有会议搜索论文，合并去重
 
@@ -302,7 +360,7 @@ def search_all_conferences(year: int, venues: List[str], max_per_venue: int = 10
         papers = search_dblp_conference(venue, year, max_results=max_per_venue)
 
         for p in papers:
-            title_norm = re.sub(r'[^a-z0-9\s]', '', p['title'].lower()).strip()
+            title_norm = re.sub(r"[^a-z0-9\s]", "", p["title"].lower()).strip()
             if title_norm not in seen_titles:
                 seen_titles.add(title_norm)
                 all_papers.append(p)
@@ -316,6 +374,7 @@ def search_all_conferences(year: int, venues: List[str], max_per_venue: int = 10
 # ---------------------------------------------------------------------------
 # 预设 / 配置
 # ---------------------------------------------------------------------------
+
 
 def normalize_preset_name(preset: Optional[str]) -> Optional[str]:
     """将用户输入的 preset 名称归一化为内置 preset。"""
@@ -336,7 +395,9 @@ def infer_preset_from_config_name(config_name: str) -> Optional[str]:
     return normalize_preset_name(stem)
 
 
-def resolve_config_path(requested_config: Optional[str], preset: Optional[str]) -> Tuple[str, str]:
+def resolve_config_path(
+    requested_config: Optional[str], preset: Optional[str]
+) -> Tuple[str, str]:
     """
     解析配置文件路径。
 
@@ -366,17 +427,22 @@ def resolve_config_path(requested_config: Optional[str], preset: Optional[str]) 
 
         inferred_preset = infer_preset_from_config_name(requested_config)
         if inferred_preset:
-            return os.path.join(skill_dir, PRESET_CONFIG_FILES[inferred_preset]), inferred_preset
+            return os.path.join(
+                skill_dir, PRESET_CONFIG_FILES[inferred_preset]
+            ), inferred_preset
 
         raise FileNotFoundError(f"配置文件不存在: {requested_config}")
 
     effective_preset = normalized_preset or DEFAULT_PRESET
-    return os.path.join(skill_dir, PRESET_CONFIG_FILES[effective_preset]), effective_preset
+    return os.path.join(
+        skill_dir, PRESET_CONFIG_FILES[effective_preset]
+    ), effective_preset
 
 
 # ---------------------------------------------------------------------------
 # 两阶段过滤：第一阶段 - 轻量关键词过滤
 # ---------------------------------------------------------------------------
+
 
 def load_conf_papers_config(config_path: str, preset: Optional[str] = None) -> Dict:
     """
@@ -392,34 +458,36 @@ def load_conf_papers_config(config_path: str, preset: Optional[str] = None) -> D
     import yaml
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             cp = yaml.safe_load(f) or {}
     except Exception as e:
         logger.error("Error loading conf-papers config: %s", e)
         cp = {}
 
-    set_semantic_scholar_api_key(cp.get('semantic_scholar_api_key'))
+    set_semantic_scholar_api_key(cp.get("semantic_scholar_api_key"))
 
-    default_conferences = cp.get('default_conferences') or []
+    default_conferences = cp.get("default_conferences") or []
     if isinstance(default_conferences, str):
-        default_conferences = [v.strip() for v in default_conferences.split(',') if v.strip()]
+        default_conferences = [
+            v.strip() for v in default_conferences.split(",") if v.strip()
+        ]
 
     resolved_preset = (
-        normalize_preset_name(cp.get('preset'))
+        normalize_preset_name(cp.get("preset"))
         or preset
         or infer_preset_from_config_name(config_path)
         or DEFAULT_PRESET
     )
 
     return {
-        'preset': resolved_preset,
-        'keywords': cp.get('keywords', []),
-        'excluded_keywords': cp.get('excluded_keywords', []),
-        'default_year': cp.get('default_year'),
-        'default_conferences': default_conferences,
-        'top_n': cp.get('top_n', 10),
-        'config_path': config_path,
-        'semantic_scholar_cache_path': cp.get('semantic_scholar_cache_path'),
+        "preset": resolved_preset,
+        "keywords": cp.get("keywords", []),
+        "excluded_keywords": cp.get("excluded_keywords", []),
+        "default_year": cp.get("default_year"),
+        "default_conferences": default_conferences,
+        "top_n": cp.get("top_n", 10),
+        "config_path": config_path,
+        "semantic_scholar_cache_path": cp.get("semantic_scholar_cache_path"),
     }
 
 
@@ -436,12 +504,12 @@ def lightweight_keyword_filter(papers: List[Dict], cp_config: Dict) -> List[Dict
         通过关键词过滤的论文列表
     """
     # 收集所有关键词（小写）
-    all_keywords = set(kw.lower() for kw in cp_config['keywords'])
-    excluded_lower = set(kw.lower() for kw in cp_config['excluded_keywords'])
+    all_keywords = set(kw.lower() for kw in cp_config["keywords"])
+    excluded_lower = set(kw.lower() for kw in cp_config["excluded_keywords"])
 
     filtered = []
     for paper in papers:
-        title_lower = paper['title'].lower()
+        title_lower = paper["title"].lower()
 
         # 检查排除关键词
         if any(ex in title_lower for ex in excluded_lower):
@@ -456,10 +524,14 @@ def lightweight_keyword_filter(papers: List[Dict], cp_config: Dict) -> List[Dict
                 matched_keywords.append(kw)
 
         if matched:
-            paper['_preliminary_keywords'] = matched_keywords
+            paper["_preliminary_keywords"] = matched_keywords
             filtered.append(paper)
 
-    logger.info("[Filter] Lightweight keyword filter: %d -> %d papers", len(papers), len(filtered))
+    logger.info(
+        "[Filter] Lightweight keyword filter: %d -> %d papers",
+        len(papers),
+        len(filtered),
+    )
     return filtered
 
 
@@ -467,8 +539,9 @@ def lightweight_keyword_filter(papers: List[Dict], cp_config: Dict) -> List[Dict
 # Semantic Scholar 补充
 # ---------------------------------------------------------------------------
 
+
 def normalize_title_for_lookup(title: str) -> str:
-    return re.sub(r'[^a-z0-9\s]', '', (title or '').lower()).strip()
+    return re.sub(r"[^a-z0-9\s]", "", (title or "").lower()).strip()
 
 
 def title_similarity(a: str, b: str) -> float:
@@ -499,27 +572,29 @@ def title_similarity(a: str, b: str) -> float:
 
 def chunked(items: List[Dict], size: int) -> Iterable[List[Dict]]:
     for i in range(0, len(items), size):
-        yield items[i:i + size]
+        yield items[i : i + size]
 
 
 def get_s2_cache_path(cp_config: Optional[Dict] = None) -> Path:
     configured = None
     if cp_config:
-        configured = cp_config.get('semantic_scholar_cache_path')
-    configured = configured or os.environ.get('VIBE_RESEARCH_S2_CACHE_PATH')
+        configured = cp_config.get("semantic_scholar_cache_path")
+    configured = configured or os.environ.get("VIBE_RESEARCH_S2_CACHE_PATH")
     if configured:
         return Path(os.path.expanduser(configured))
 
-    xdg_cache_home = os.environ.get('XDG_CACHE_HOME')
-    cache_root = Path(xdg_cache_home).expanduser() if xdg_cache_home else Path.home() / '.cache'
-    return cache_root / 'vibe_research_skills' / 'semantic_scholar_cache.json'
+    xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
+    cache_root = (
+        Path(xdg_cache_home).expanduser() if xdg_cache_home else Path.home() / ".cache"
+    )
+    return cache_root / "vibe_research_skills" / "semantic_scholar_cache.json"
 
 
 def load_s2_cache(cache_path: Path) -> Dict[str, Dict]:
     try:
         if not cache_path.exists():
             return {}
-        with open(cache_path, 'r', encoding='utf-8') as f:
+        with open(cache_path, "r", encoding="utf-8") as f:
             raw_cache = json.load(f)
         if not isinstance(raw_cache, dict):
             return {}
@@ -532,7 +607,7 @@ def load_s2_cache(cache_path: Path) -> Dict[str, Dict]:
 def save_s2_cache(cache_path: Path, cache: Dict[str, Dict]) -> None:
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, 'w', encoding='utf-8') as f:
+        with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(cache, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.warning("[S2] Failed to save cache %s: %s", cache_path, e)
@@ -540,11 +615,11 @@ def save_s2_cache(cache_path: Path, cache: Dict[str, Dict]) -> None:
 
 def get_cache_keys_for_paper(paper: Dict) -> List[str]:
     keys = []
-    doi = (paper.get('doi') or '').strip().lower()
+    doi = (paper.get("doi") or "").strip().lower()
     if doi:
         keys.append(f"doi:{doi}")
 
-    title_key = normalize_title_for_lookup(paper.get('title', ''))
+    title_key = normalize_title_for_lookup(paper.get("title", ""))
     if title_key:
         keys.append(f"title:{title_key}")
     return keys
@@ -552,11 +627,11 @@ def get_cache_keys_for_paper(paper: Dict) -> List[str]:
 
 def get_cache_keys_for_enrichment(paper: Dict, enrichment: Dict) -> List[str]:
     keys = set(get_cache_keys_for_paper(paper))
-    doi = (enrichment.get('doi') or '').strip().lower()
+    doi = (enrichment.get("doi") or "").strip().lower()
     if doi:
         keys.add(f"doi:{doi}")
 
-    matched_title = enrichment.get('matched_title') or paper.get('title', '')
+    matched_title = enrichment.get("matched_title") or paper.get("title", "")
     title_key = normalize_title_for_lookup(matched_title)
     if title_key:
         keys.add(f"title:{title_key}")
@@ -570,20 +645,22 @@ def get_cached_enrichment(cache: Dict[str, Dict], paper: Dict) -> Optional[Dict]
         entry = cache.get(key)
         if not entry:
             continue
-        cached_at = entry.get('cached_at', 0)
+        cached_at = entry.get("cached_at", 0)
         if now - cached_at > S2_CACHE_TTL_SECONDS:
             cache.pop(key, None)
             continue
-        data = entry.get('data')
+        data = entry.get("data")
         if isinstance(data, dict):
             return data
     return None
 
 
-def store_cached_enrichment(cache: Dict[str, Dict], paper: Dict, enrichment: Dict) -> None:
+def store_cached_enrichment(
+    cache: Dict[str, Dict], paper: Dict, enrichment: Dict
+) -> None:
     cache_entry = {
-        'cached_at': int(time.time()),
-        'data': enrichment,
+        "cached_at": int(time.time()),
+        "data": enrichment,
     }
     for key in get_cache_keys_for_enrichment(paper, enrichment):
         cache[key] = cache_entry
@@ -591,23 +668,23 @@ def store_cached_enrichment(cache: Dict[str, Dict], paper: Dict, enrichment: Dic
 
 def build_empty_enrichment(match_method: str) -> Dict[str, Any]:
     return {
-        'abstract': None,
-        'citationCount': 0,
-        'influentialCitationCount': 0,
-        's2_url': '',
-        'arxiv_id': None,
-        'doi': '',
-        'authors': [],
-        'affiliations': [],
-        's2_matched': False,
-        's2_match_method': match_method,
+        "abstract": None,
+        "citationCount": 0,
+        "influentialCitationCount": 0,
+        "s2_url": "",
+        "arxiv_id": None,
+        "doi": "",
+        "authors": [],
+        "affiliations": [],
+        "s2_matched": False,
+        "s2_match_method": match_method,
     }
 
 
 def extract_s2_authors(result: Optional[Dict]) -> List[str]:
     if not result:
         return []
-    return [a.get('name', '') for a in result.get('authors', []) if a.get('name')]
+    return [a.get("name", "") for a in result.get("authors", []) if a.get("name")]
 
 
 def extract_s2_affiliations(result: Optional[Dict]) -> List[str]:
@@ -615,9 +692,9 @@ def extract_s2_affiliations(result: Optional[Dict]) -> List[str]:
     if not result:
         return affiliations
 
-    for author in result.get('authors', []):
-        for affil in (author.get('affiliations') or []):
-            name = affil.get('name', '') if isinstance(affil, dict) else str(affil)
+    for author in result.get("authors", []):
+        for affil in author.get("affiliations") or []:
+            name = affil.get("name", "") if isinstance(affil, dict) else str(affil)
             if name and name not in affiliations:
                 affiliations.append(name)
     return affiliations
@@ -631,54 +708,56 @@ def build_enrichment_from_s2_result(
     if not result:
         return build_empty_enrichment(match_method)
 
-    ext_ids = result.get('externalIds') or {}
+    ext_ids = result.get("externalIds") or {}
     enrichment = {
-        'abstract': result.get('abstract'),
-        'citationCount': result.get('citationCount') or 0,
-        'influentialCitationCount': result.get('influentialCitationCount') or 0,
-        's2_url': result.get('url', ''),
-        'arxiv_id': ext_ids.get('ArXiv'),
-        'doi': ext_ids.get('DOI', ''),
-        'authors': extract_s2_authors(result),
-        'affiliations': extract_s2_affiliations(result),
-        'matched_title': result.get('title', ''),
-        's2_matched': True,
-        's2_match_method': match_method,
+        "abstract": result.get("abstract"),
+        "citationCount": result.get("citationCount") or 0,
+        "influentialCitationCount": result.get("influentialCitationCount") or 0,
+        "s2_url": result.get("url", ""),
+        "arxiv_id": ext_ids.get("ArXiv"),
+        "doi": ext_ids.get("DOI", ""),
+        "authors": extract_s2_authors(result),
+        "affiliations": extract_s2_affiliations(result),
+        "matched_title": result.get("title", ""),
+        "s2_matched": True,
+        "s2_match_method": match_method,
     }
     if similarity is not None:
-        enrichment['s2_title_similarity'] = round(similarity, 2)
+        enrichment["s2_title_similarity"] = round(similarity, 2)
     return enrichment
 
 
 def apply_s2_enrichment(paper: Dict, enrichment: Dict) -> None:
-    paper['abstract'] = enrichment.get('abstract')
-    paper['citationCount'] = enrichment.get('citationCount', 0) or 0
-    paper['influentialCitationCount'] = enrichment.get('influentialCitationCount', 0) or 0
-    paper['s2_matched'] = enrichment.get('s2_matched', False)
-    paper['s2_match_method'] = enrichment.get('s2_match_method', '')
+    paper["abstract"] = enrichment.get("abstract")
+    paper["citationCount"] = enrichment.get("citationCount", 0) or 0
+    paper["influentialCitationCount"] = (
+        enrichment.get("influentialCitationCount", 0) or 0
+    )
+    paper["s2_matched"] = enrichment.get("s2_matched", False)
+    paper["s2_match_method"] = enrichment.get("s2_match_method", "")
 
-    if enrichment.get('s2_url'):
-        paper['s2_url'] = enrichment['s2_url']
+    if enrichment.get("s2_url"):
+        paper["s2_url"] = enrichment["s2_url"]
     else:
-        paper.pop('s2_url', None)
+        paper.pop("s2_url", None)
 
-    if enrichment.get('arxiv_id'):
-        paper['arxiv_id'] = enrichment['arxiv_id']
-    if enrichment.get('doi'):
-        paper['doi'] = paper.get('doi') or enrichment['doi']
-    if enrichment.get('authors') and not paper.get('authors'):
-        paper['authors'] = enrichment['authors']
-    if enrichment.get('affiliations'):
-        paper['affiliations'] = enrichment['affiliations']
+    if enrichment.get("arxiv_id"):
+        paper["arxiv_id"] = enrichment["arxiv_id"]
+    if enrichment.get("doi"):
+        paper["doi"] = paper.get("doi") or enrichment["doi"]
+    if enrichment.get("authors") and not paper.get("authors"):
+        paper["authors"] = enrichment["authors"]
+    if enrichment.get("affiliations"):
+        paper["affiliations"] = enrichment["affiliations"]
 
-    if 's2_title_similarity' in enrichment:
-        paper['s2_title_similarity'] = enrichment['s2_title_similarity']
+    if "s2_title_similarity" in enrichment:
+        paper["s2_title_similarity"] = enrichment["s2_title_similarity"]
     else:
-        paper.pop('s2_title_similarity', None)
+        paper.pop("s2_title_similarity", None)
 
 
 def get_exact_s2_identifier(paper: Dict) -> Optional[str]:
-    doi = (paper.get('doi') or '').strip()
+    doi = (paper.get("doi") or "").strip()
     return doi or None
 
 
@@ -703,8 +782,8 @@ def fetch_s2_batch_by_identifier(
         logger.warning("[S2] Batch lookup failed for %d ids: %s", len(identifiers), e)
         return None
 
-    if isinstance(data, dict) and isinstance(data.get('data'), list):
-        data = data['data']
+    if isinstance(data, dict) and isinstance(data.get("data"), list):
+        data = data["data"]
     if isinstance(data, list):
         return data
 
@@ -712,7 +791,9 @@ def fetch_s2_batch_by_identifier(
     return None
 
 
-def fetch_s2_paper_by_identifier(identifier: str, max_retries: int = 3) -> Optional[Dict]:
+def fetch_s2_paper_by_identifier(
+    identifier: str, max_retries: int = 3
+) -> Optional[Dict]:
     try:
         return semantic_scholar_request(
             f"{S2_PAPER_URL}/{urllib.parse.quote(identifier, safe='')}",
@@ -750,7 +831,7 @@ def fetch_s2_best_title_match(title: str, max_retries: int = 3) -> Dict[str, Any
     best_match = None
     best_sim = 0.0
     for result in results:
-        sim = title_similarity(title, result.get('title', ''))
+        sim = title_similarity(title, result.get("title", ""))
         if sim > best_sim:
             best_sim = sim
             best_match = result
@@ -806,14 +887,18 @@ def enrich_with_semantic_scholar(
     )
 
     exact_candidates = [paper for paper in unresolved if get_exact_s2_identifier(paper)]
-    title_fallback = [paper for paper in unresolved if not get_exact_s2_identifier(paper)]
+    title_fallback = [
+        paper for paper in unresolved if not get_exact_s2_identifier(paper)
+    ]
 
     if exact_candidates:
         logger.info("[S2] DOI exact candidates: %d", len(exact_candidates))
 
     for batch in chunked(exact_candidates, S2_BATCH_SIZE):
         identifiers = [get_exact_s2_identifier(paper) for paper in batch]
-        batch_results = fetch_s2_batch_by_identifier(identifiers, max_retries=max_retries)
+        batch_results = fetch_s2_batch_by_identifier(
+            identifiers, max_retries=max_retries
+        )
 
         if batch_results is None or len(batch_results) != len(batch):
             batch_results = [None] * len(batch)
@@ -823,25 +908,29 @@ def enrich_with_semantic_scholar(
             if batch_result:
                 enrichment = build_enrichment_from_s2_result(batch_result, "doi_batch")
             elif identifier:
-                single_result = fetch_s2_paper_by_identifier(identifier, max_retries=max_retries)
+                single_result = fetch_s2_paper_by_identifier(
+                    identifier, max_retries=max_retries
+                )
                 if single_result:
-                    enrichment = build_enrichment_from_s2_result(single_result, "doi_exact")
+                    enrichment = build_enrichment_from_s2_result(
+                        single_result, "doi_exact"
+                    )
 
             if enrichment is not None:
                 apply_s2_enrichment(paper, enrichment)
                 store_cached_enrichment(cache, paper, enrichment)
-                if enrichment.get('s2_matched'):
+                if enrichment.get("s2_matched"):
                     exact_matches += 1
             else:
                 title_fallback.append(paper)
 
     title_search_cache = {}
     for i, paper in enumerate(title_fallback):
-        title = paper.get('title', '').strip()
+        title = paper.get("title", "").strip()
         if not title:
             enrichment = build_empty_enrichment("title_search")
         else:
-            title_key = hashlib.sha1(title.encode('utf-8')).hexdigest()
+            title_key = hashlib.sha1(title.encode("utf-8")).hexdigest()
             if title_key not in title_search_cache:
                 title_search_cache[title_key] = fetch_s2_best_title_match(
                     title,
@@ -851,7 +940,7 @@ def enrich_with_semantic_scholar(
 
         apply_s2_enrichment(paper, enrichment)
         store_cached_enrichment(cache, paper, enrichment)
-        if enrichment.get('s2_matched'):
+        if enrichment.get("s2_matched"):
             title_matches += 1
 
         if (i + 1) % 10 == 0:
@@ -877,6 +966,7 @@ def enrich_with_semantic_scholar(
 # 评分
 # ---------------------------------------------------------------------------
 
+
 def calculate_popularity_score(paper: Dict) -> float:
     """
     基于 influentialCitationCount 和 citationCount 计算热门度
@@ -887,12 +977,15 @@ def calculate_popularity_score(paper: Dict) -> float:
     Returns:
         热门度评分 (0-SCORE_MAX)
     """
-    inf_cit = paper.get('influentialCitationCount', 0)
-    cit = paper.get('citationCount', 0)
+    inf_cit = paper.get("influentialCitationCount", 0)
+    cit = paper.get("citationCount", 0)
 
     if inf_cit > 0:
         # 高影响力引用：归一化到 0-SCORE_MAX
-        score = min(inf_cit / (POPULARITY_INFLUENTIAL_CITATION_FULL_SCORE / SCORE_MAX), SCORE_MAX)
+        score = min(
+            inf_cit / (POPULARITY_INFLUENTIAL_CITATION_FULL_SCORE / SCORE_MAX),
+            SCORE_MAX,
+        )
     elif cit > 0:
         # 普通引用：更保守的评分
         score = min(cit / 200 * SCORE_MAX, SCORE_MAX * 0.7)
@@ -902,7 +995,9 @@ def calculate_popularity_score(paper: Dict) -> float:
     return score
 
 
-def filter_and_score_papers(papers: List[Dict], cp_config: Dict, top_n: int = 10) -> List[Dict]:
+def filter_and_score_papers(
+    papers: List[Dict], cp_config: Dict, top_n: int = 10
+) -> List[Dict]:
     """
     对论文进行完整的三维评分（相关性+热门度+质量），排序取 top N
     使用当前 conf-papers 配置的关键词构建虚拟 domain 用于评分
@@ -918,24 +1013,24 @@ def filter_and_score_papers(papers: List[Dict], cp_config: Dict, top_n: int = 10
     # 构建虚拟 domain 供 calculate_relevance_score 使用
     domains = {
         "conf_papers": {
-            "keywords": cp_config['keywords'],
+            "keywords": cp_config["keywords"],
             "arxiv_categories": ["cs.AI", "cs.CL", "cs.LG"],
         }
     }
-    excluded_keywords = cp_config['excluded_keywords']
+    excluded_keywords = cp_config["excluded_keywords"]
 
     scored_papers = []
 
     for paper in papers:
         # 为了复用 calculate_relevance_score，需要为顶会论文补充 categories
         # 使用会议到分类的映射
-        venue = paper.get('conference', '')
+        venue = paper.get("conference", "")
         venue_categories = VENUE_TO_CATEGORIES.get(venue, [])
-        paper['categories'] = venue_categories
+        paper["categories"] = venue_categories
 
         # 用 abstract 替代 summary（兼容 calculate_relevance_score）
-        if paper.get('abstract') and not paper.get('summary'):
-            paper['summary'] = paper['abstract']
+        if paper.get("abstract") and not paper.get("summary"):
+            paper["summary"] = paper["abstract"]
 
         # 计算相关性
         relevance, matched_domain, matched_keywords = calculate_relevance_score(
@@ -949,31 +1044,31 @@ def filter_and_score_papers(papers: List[Dict], cp_config: Dict, top_n: int = 10
         popularity = calculate_popularity_score(paper)
 
         # 计算质量
-        summary = paper.get('summary', '') or paper.get('abstract', '') or ''
+        summary = paper.get("summary", "") or paper.get("abstract", "") or ""
         quality = calculate_quality_score(summary)
 
         # 计算综合评分（三维度）
         normalized = {
-            'relevance': (relevance / SCORE_MAX) * 10,
-            'popularity': (popularity / SCORE_MAX) * 10,
-            'quality': (quality / SCORE_MAX) * 10,
+            "relevance": (relevance / SCORE_MAX) * 10,
+            "popularity": (popularity / SCORE_MAX) * 10,
+            "quality": (quality / SCORE_MAX) * 10,
         }
         final_score = sum(normalized[k] * WEIGHTS_CONF[k] for k in WEIGHTS_CONF)
         final_score = round(final_score, 2)
 
-        paper['scores'] = {
-            'relevance': round(relevance, 2),
-            'popularity': round(popularity, 2),
-            'quality': round(quality, 2),
-            'recommendation': final_score,
+        paper["scores"] = {
+            "relevance": round(relevance, 2),
+            "popularity": round(popularity, 2),
+            "quality": round(quality, 2),
+            "recommendation": final_score,
         }
-        paper['matched_domain'] = matched_domain
-        paper['matched_keywords'] = matched_keywords
+        paper["matched_domain"] = matched_domain
+        paper["matched_keywords"] = matched_keywords
 
         scored_papers.append(paper)
 
     # 按推荐评分排序
-    scored_papers.sort(key=lambda x: x['scores']['recommendation'], reverse=True)
+    scored_papers.sort(key=lambda x: x["scores"]["recommendation"], reverse=True)
 
     logger.info("[Score] %d papers scored, returning top %d", len(scored_papers), top_n)
     return scored_papers[:top_n]
@@ -983,32 +1078,62 @@ def filter_and_score_papers(papers: List[Dict], cp_config: Dict, top_n: int = 10
 # 主函数
 # ---------------------------------------------------------------------------
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Search top conference papers via DBLP + Semantic Scholar')
-    parser.add_argument('--config', type=str,
-                        default=None,
-                        help='Path to config file, or one of the built-in preset filenames')
-    parser.add_argument('--preset', type=str, default=None,
-                        help='Built-in preset name: computer or hci')
-    parser.add_argument('--output', type=str, default='conf_papers_filtered.json',
-                        help='Output JSON file path')
-    parser.add_argument('--year', type=int, default=None,
-                        help='Conference year to search (default: from config)')
-    parser.add_argument('--conferences', type=str, default=None,
-                        help='Comma-separated conference names (default: from config)')
-    parser.add_argument('--top-n', type=int, default=None,
-                        help='Number of top papers to return (default: from config)')
-    parser.add_argument('--max-per-venue', type=int, default=1000,
-                        help='Max papers to fetch per venue from DBLP')
-    parser.add_argument('--skip-enrichment', action='store_true',
-                        help='Skip Semantic Scholar enrichment (for debugging)')
+    parser = argparse.ArgumentParser(
+        description="Search top conference papers via DBLP + Semantic Scholar"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to config file, or one of the built-in preset filenames",
+    )
+    parser.add_argument(
+        "--preset", type=str, default=None, help="Built-in preset name: computer or hci"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="conf_papers_filtered.json",
+        help="Output JSON file path",
+    )
+    parser.add_argument(
+        "--year",
+        type=int,
+        default=None,
+        help="Conference year to search (default: from config)",
+    )
+    parser.add_argument(
+        "--conferences",
+        type=str,
+        default=None,
+        help="Comma-separated conference names (default: from config)",
+    )
+    parser.add_argument(
+        "--top-n",
+        type=int,
+        default=None,
+        help="Number of top papers to return (default: from config)",
+    )
+    parser.add_argument(
+        "--max-per-venue",
+        type=int,
+        default=1000,
+        help="Max papers to fetch per venue from DBLP",
+    )
+    parser.add_argument(
+        "--skip-enrichment",
+        action="store_true",
+        help="Skip Semantic Scholar enrichment (for debugging)",
+    )
 
     args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        datefmt='%H:%M:%S',
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
         stream=sys.stderr,
     )
 
@@ -1020,29 +1145,34 @@ def main():
 
     logger.info("Loading conf-papers config from: %s", config_path)
     cp_config = load_conf_papers_config(config_path, preset=resolved_preset)
-    logger.info("Preset: %s", cp_config['preset'])
-    logger.info("Config: %d keywords, %d excluded",
-                len(cp_config['keywords']), len(cp_config['excluded_keywords']))
+    logger.info("Preset: %s", cp_config["preset"])
+    logger.info(
+        "Config: %d keywords, %d excluded",
+        len(cp_config["keywords"]),
+        len(cp_config["excluded_keywords"]),
+    )
     logger.info(
         "Semantic Scholar API key: %s",
-        "configured" if "x-api-key" in build_s2_headers("ConfPapers/1.0") else "not configured",
+        "configured"
+        if "x-api-key" in build_s2_headers("ConfPapers/1.0")
+        else "not configured",
     )
     logger.info("Semantic Scholar cache: %s", get_s2_cache_path(cp_config))
 
     # 确定年份：命令行 > 配置 > 报错
-    year = args.year or cp_config.get('default_year')
+    year = args.year or cp_config.get("default_year")
     if not year:
         logger.error("未指定搜索年份。请通过 --year 参数或配置文件 default_year 设置。")
         return 1
 
     # 确定 top_n：命令行 > 配置 > 默认 10
-    top_n = args.top_n or cp_config.get('top_n', 10)
+    top_n = args.top_n or cp_config.get("top_n", 10)
 
     # 确定要搜索的会议：命令行 > 配置 > 全部支持的会议
     if args.conferences:
-        venues = [v.strip() for v in args.conferences.split(',')]
-    elif cp_config.get('default_conferences'):
-        venues = list(cp_config['default_conferences'])
+        venues = [v.strip() for v in args.conferences.split(",")]
+    elif cp_config.get("default_conferences"):
+        venues = list(cp_config["default_conferences"])
     else:
         venues = list(DBLP_VENUES.keys())
 
@@ -1054,14 +1184,18 @@ def main():
         if canonical:
             valid_venues.append(canonical)
         else:
-            logger.warning("Unknown conference: %s (available: %s)", v, ', '.join(DBLP_VENUES.keys()))
+            logger.warning(
+                "Unknown conference: %s (available: %s)",
+                v,
+                ", ".join(DBLP_VENUES.keys()),
+            )
     venues = valid_venues
 
     if not venues:
         logger.error("No valid conferences specified")
         return 1
 
-    logger.info("Conferences: %s", ', '.join(venues))
+    logger.info("Conferences: %s", ", ".join(venues))
     logger.info("Year: %d", year)
 
     # ========== 第一步：DBLP 搜索 ==========
@@ -1077,7 +1211,7 @@ def main():
         logger.warning("No papers found from DBLP!")
         # 输出空结果
         output = {
-            "preset": cp_config.get('preset'),
+            "preset": cp_config.get("preset"),
             "config_path": config_path,
             "year": year,
             "conferences_searched": venues,
@@ -1087,7 +1221,7 @@ def main():
             "total_unique": 0,
             "top_papers": [],
         }
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
         print(json.dumps(output, ensure_ascii=False, indent=2))
         return 0
@@ -1103,7 +1237,7 @@ def main():
     if not filtered_papers:
         logger.warning("No papers passed keyword filter!")
         output = {
-            "preset": cp_config.get('preset'),
+            "preset": cp_config.get("preset"),
             "config_path": config_path,
             "year": year,
             "conferences_searched": venues,
@@ -1113,7 +1247,7 @@ def main():
             "total_unique": 0,
             "top_papers": [],
         }
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
         print(json.dumps(output, ensure_ascii=False, indent=2))
         return 0
@@ -1122,11 +1256,15 @@ def main():
     total_enriched = 0
     if not args.skip_enrichment:
         logger.info("=" * 70)
-        logger.info("Step 3: Enriching with Semantic Scholar (%d papers)", len(filtered_papers))
+        logger.info(
+            "Step 3: Enriching with Semantic Scholar (%d papers)", len(filtered_papers)
+        )
         logger.info("=" * 70)
 
-        filtered_papers = enrich_with_semantic_scholar(filtered_papers, cp_config=cp_config)
-        total_enriched = sum(1 for p in filtered_papers if p.get('s2_matched'))
+        filtered_papers = enrich_with_semantic_scholar(
+            filtered_papers, cp_config=cp_config
+        )
+        total_enriched = sum(1 for p in filtered_papers if p.get("s2_matched"))
     else:
         logger.info("Skipping Semantic Scholar enrichment (--skip-enrichment)")
 
@@ -1139,18 +1277,18 @@ def main():
 
     # 清理输出中的内部字段
     for p in top_papers:
-        p.pop('_preliminary_keywords', None)
-        p.pop('s2_matched', None)
-        p.pop('s2_title_similarity', None)
-        p.pop('categories', None)
-        p.pop('summary', None)  # 保留 abstract，去掉重复的 summary
+        p.pop("_preliminary_keywords", None)
+        p.pop("s2_matched", None)
+        p.pop("s2_title_similarity", None)
+        p.pop("categories", None)
+        p.pop("summary", None)  # 保留 abstract，去掉重复的 summary
         # 为每篇论文补充 note_filename，与 generate_note.py 的文件名规则保持一致
         # 这样 conf-papers 生成的 wikilink 可以直接使用此字段，无需自行推断
-        p['note_filename'] = title_to_note_filename(p.get('title', ''))
+        p["note_filename"] = title_to_note_filename(p.get("title", ""))
 
     # 准备输出
     output = {
-        "preset": cp_config.get('preset'),
+        "preset": cp_config.get("preset"),
         "config_path": config_path,
         "year": year,
         "conferences_searched": venues,
@@ -1160,20 +1298,25 @@ def main():
         "top_papers": top_papers,
     }
 
-    with open(args.output, 'w', encoding='utf-8') as f:
+    with open(args.output, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2, default=str)
 
     logger.info("Results saved to: %s", args.output)
     logger.info("Top %d papers:", len(top_papers))
     for i, p in enumerate(top_papers, 1):
-        cit = p.get('citationCount', 0)
-        logger.info("  %d. [%s] %s... (Score: %s, Citations: %d)",
-                     i, p.get('conference', '?'), p.get('title', 'N/A')[:50],
-                     p['scores']['recommendation'], cit)
+        cit = p.get("citationCount", 0)
+        logger.info(
+            "  %d. [%s] %s... (Score: %s, Citations: %d)",
+            i,
+            p.get("conference", "?"),
+            p.get("title", "N/A")[:50],
+            p["scores"]["recommendation"],
+            cit,
+        )
 
     print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
