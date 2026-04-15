@@ -20,25 +20,19 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+CURRENT_DIR = Path(__file__).resolve().parent
+SKILLS_ROOT = CURRENT_DIR.parent.parent
+if str(SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SKILLS_ROOT))
+
+from shared_workflow_utils import (
+    build_selected_paper_record,
+    normalize_title_alias,
+    title_to_note_filename,
+    write_json_file,
+)
+
 logger = logging.getLogger(__name__)
-
-
-def title_to_note_filename(title: str) -> str:
-    """将论文标题转换为 Obsidian 笔记文件名（与 generate_note.py 保持一致）。
-
-    使用与 paper-analyze/scripts/generate_note.py 完全相同的规则，
-    确保 start-my-day 生成的 wikilink 路径能正确指向 paper-analyze 创建的文件。
-    """
-    filename = re.sub(r'[ /\\:*?"<>|]+', '_', title).strip('_')
-    return filename
-
-
-def normalize_title_alias(title: str) -> str:
-    """将标题规范化为可用于排重匹配的别名。"""
-    normalized = (title or '').lower()
-    normalized = re.sub(r'[\W_]+', ' ', normalized)
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    return normalized
 
 
 def load_existing_index(index_path: Optional[str]) -> Dict[str, Any]:
@@ -1278,8 +1272,10 @@ def main():
                         help='Comma-separated list of arXiv categories (optional; default derives from preference config)')
     parser.add_argument('--existing-index', type=str, default=None,
                         help='Path to existing_notes_index.json for duplicate filtering')
-    parser.add_argument('--skip-hot-papers', action='store_true',
-                        help='Skip searching hot papers from Semantic Scholar')
+    parser.add_argument('--selected-output', type=str, default=None,
+                        help='Optional path to write the top selected papers manifest')
+    parser.add_argument('--vault-root', type=str, default=os.environ.get('OBSIDIAN_VAULT_PATH'),
+                        help='Vault root for resolving canonical paper directories in selected manifest')
 
     args = parser.parse_args()
 
@@ -1452,6 +1448,11 @@ def main():
         logger.warning("No non-duplicate candidate papers remained after filtering!")
         return 1
 
+    selected_papers = [
+        build_selected_paper_record(paper, vault_root=args.vault_root)
+        for paper in candidates[:5]
+    ]
+
     output = {
         'query_context': {
             'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
@@ -1491,11 +1492,19 @@ def main():
         },
         'hot_search_status': hot_search_status,
         'candidates': candidates,
+        'selected_papers': selected_papers,
         'excluded_duplicates': excluded_duplicates,
     }
 
-    with open(args.output, 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2, default=str)
+    write_json_file(args.output, output)
+    if args.selected_output:
+        selected_manifest = {
+            'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
+            'source_candidates_path': args.output,
+            'selection_count': len(selected_papers),
+            'papers': selected_papers,
+        }
+        write_json_file(args.selected_output, selected_manifest)
 
     logger.info("Results saved to: %s", args.output)
     logger.info("Candidate papers: %d", len(candidates))

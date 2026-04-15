@@ -77,38 +77,36 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 
 ## 步骤2：获取论文内容
 
-### 2.1 下载PDF并提取源码
+### 2.1 读取已准备好的资产
 
-```bash
-# 下载PDF
-curl -L "https://arxiv.org/pdf/[PAPER_ID]" -o /tmp/paper_analysis/[PAPER_ID].pdf
+`paper-analyze` 不再负责下载 PDF / 源码包。下载和资产落盘由 `paper-search` + `extract-images-and-text` 预先完成。
 
-# 下载源码包（包含TeX和图片）
-curl -L "https://arxiv.org/e-print/[PAPER_ID]" -o /tmp/paper_analysis/[PAPER_ID].tar.gz
-tar -xzf /tmp/paper_analysis/[PAPER_ID].tar.gz -C /tmp/paper_analysis/
-```
+在开始分析前，必须先读取：
+- `prepared_paper_assets.json`
+- 每篇论文对应的 `text/full_text.md`
+- `text/sections.json`
+- `text/figure_context.json`
+- `images/index.md`
 
 ### 2.2 提取论文元数据
 
-```bash
-# 使用curl获取arXiv页面
-curl -s "https://arxiv.org/abs/[PAPER_ID]" > /tmp/paper_analysis/arxiv_page.html
+优先从已准备好的 manifest / text 资产中读取：
+- 标题
+- 作者
+- 发布日期
+- 论文领域
+- PDF 路径
+- 图片目录
 
-# 提取关键信息（使用通用正则，适用于任何论文）
-TITLE=$(grep -oP '<title>\K[^<]*' /tmp/paper_analysis/arxiv_page.html | head -1)
-AUTHORS=$(grep -oP 'citation_author" content="\K[^"]*' /tmp/paper_analysis/arxiv_page.html | paste -sd ', ')
-DATE=$(grep -oP 'citation_date" content="\K[^"]*' /tmp/paper_analysis/arxiv_page.html | head -1)
-```
+如缺失，再回退到 arXiv 页面补齐基础 metadata。
 
-### 2.3 读取TeX源码内容
+### 2.3 读取正文与图片上下文
 
-```bash
-# 读取各章节内容
-cat /tmp/paper_analysis/1-introduction.tex > /tmp/paper_analysis/intro.txt
-cat /tmp/paper_analysis/2-joint-optimization.tex > /tmp/paper_analysis/methods.txt
-cat /tmp/paper_analysis/3-agent-swarm.tex > /tmp/paper_analysis/agent_swarm.txt
-cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
-```
+分析时应优先消费已准备好的文本资产：
+- `text/full_text.md`：全文串行文本
+- `text/sections.json`：按章节切分的正文
+- `text/figure_context.json`：figure / table 周边文字
+- `images/index.md`：图片列表、来源和角色
 
 ## 步骤2.1 从arXiv获取
 
@@ -118,10 +116,9 @@ cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
    - 提取：标题、作者、摘要、发布日期、类别、链接、PDF链接
 
 2. **获取PDF内容和图片**
-   - 使用WebFetch获取PDF
-   - **重要**：提取论文中的所有图片
-   - 保存图片到`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`
-   - 生成图片索引：`images/index.md`
+   - 不再由本 skill 直接下载 PDF
+   - 读取 `prepared_paper_assets.json` 中已准备好的 PDF / 图片 / 文本资产
+   - 重点使用：`images/index.md`、`text/full_text.md`、`text/sections.json`、`text/figure_context.json`
 
 3. **图片语义验证（必须）**
    - 在插图前，先判断每张候选图“展示的是什么、在论文里起什么作用”
@@ -231,13 +228,13 @@ cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
 
 ## 步骤3：复制图片并生成索引
 
-```bash
-# 复制figures目录到目标位置
-cp /tmp/paper_analysis/*.{pdf,png,jpg,jpeg} "PAPERS_DIR/[DOMAIN]/[PAPER_TITLE]/images/" 2>/dev/null
+这一步不再手工复制 `/tmp/paper_analysis` 中的内容。
+应直接使用 `extract-images-and-text` 已经准备好的目录：
+- `vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/`
+- `vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/index.md`
+- `vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/text/`
 
-# 列出复制的内容
-ls "PAPERS_DIR/[DOMAIN]/[PAPER_TITLE]/images/"
-```
+分析时只读取这些资产，不再承担下载和复制职责。
 
 ## 步骤4：生成综合论文笔记
 
@@ -544,16 +541,21 @@ find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -typ
 
 #### 步骤2：获取论文内容
 ```bash
-# 下载PDF和源码（见步骤2.1、2.2、2.3）
+# 读取 prepared_paper_assets.json
+cat "prepared_paper_assets.json"
 
-# 或者从已有数据读取
-cat /tmp/paper_analysis/{1-introduction,2-joint-optimization,3-agent-swarm,5-eval}.tex
+# 再读取对应论文目录下的文本与图片索引
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/full_text.md"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/sections.json"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/figure_context.json"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images/index.md"
 ```
 
-#### 步骤3：复制图片
+#### 步骤3：读取图文资产
 ```bash
-# 使用extract-paper-images skill
-/extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE"
+# 使用 extract-images-and-text 预先准备好的资产目录
+ls "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images"
+ls "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text"
 ```
 
 #### 步骤4：生成笔记
@@ -1032,13 +1034,9 @@ AUTHORS="${3:-待定作者}"
 DOMAIN="${4:-其他}"
 
 # 执行完整流程；若使用 uv 环境，请优先用 uv run python
+# 前提：paper-search 已下载 PDF，并由 extract-images-and-text 生成 prepared_paper_assets.json
 uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE" || \
     echo "笔记生成脚本执行失败"
-
-# 提取图片
-# 调用 extract-paper-images skill
-# /extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE" || \
-#     echo "图片提取失败"
 ```
 
 上面的 bash 代码块是内嵌示例脚本。仓库当前未提供 `run_full_analysis.sh` 或 `run_paper_analysis.py` 文件；如果需要一键执行，请将该示例保存为本地脚本后再运行。
@@ -1060,16 +1058,21 @@ find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -typ
 
 #### 步骤2：获取论文内容
 ```bash
-# 下载PDF和源码（见步骤2.1、2.2、2.3）
+# 读取 prepared_paper_assets.json
+cat "prepared_paper_assets.json"
 
-# 或者从已有数据读取
-cat /tmp/paper_analysis/{1-introduction,2-joint-optimization,3-agent-swarm,5-eval}.tex
+# 再读取对应论文目录下的文本与图片索引
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/full_text.md"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/sections.json"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text/figure_context.json"
+cat "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images/index.md"
 ```
 
-#### 步骤3：复制图片
+#### 步骤3：读取图文资产
 ```bash
-# 使用extract-paper-images skill
-/extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE"
+# 使用 extract-images-and-text 预先准备好的资产目录
+ls "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images"
+ls "${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/text"
 ```
 
 #### 步骤4：生成笔记

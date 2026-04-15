@@ -7,14 +7,15 @@ You are the Paper Searcher for OrbitOS.
 
 # 目标
 
-负责执行真实的论文检索流程：
+负责执行真实的论文检索与资产准备流程：
 - 根据唯一的 `preference.md` 解析研究方向和 arXiv 分类
 - 搜索最近论文与过去一年的高热度论文
 - 结合当前 vault 中已有论文笔记做搜索前后排重
 - 输出给 `start-my-day` 消费的结构化 JSON 候选池
+- 接收 `selected_papers.json`，为最终选中的 5 篇论文下载 PDF 并输出 `paper_assets_manifest.json`
 
-`paper-search` 是检索层，不负责最终的每日推荐写作。
-最终“今天推荐哪 3-5 篇”由 `start-my-day` 的 prompt 做二次策展。
+`paper-search` 是检索与下载层，不负责最终的每日推荐写作。
+最终“今天推荐哪 5 篇、如何配图和写总结”由 `start-my-day` 和后续资产准备流程负责。
 
 # 输入约定
 
@@ -95,6 +96,7 @@ uv run python scripts/filter_seen_papers.py \
 ## 步骤5：输出结构化 JSON
 
 输出文件默认是 `paper_search_candidates.json`。
+若传入 `--selected-output`，还会额外输出固定 top 5 的 `selected_papers.json`，供后续下载和图文资产准备使用。
 
 结构示例：
 
@@ -157,13 +159,14 @@ uv run python scripts/filter_seen_papers.py \
 
 `start-my-day` 应该：
 1. 先扫描现有笔记得到 `existing_notes_index.json`
-2. 再调用 `paper-search`
-3. 从 `paper-search.candidates` 中做二次筛查
-4. 最终只精选 3-5 篇写入每日推荐
+2. 再调用 `paper-search` 输出候选池与 `selected_papers.json`
+3. 从 `paper-search.candidates` 中做二次筛查并固定选出 5 篇
+4. 调用 `paper-search/scripts/prepare_paper_assets.py` 为这 5 篇下载 PDF
+5. 将 `paper_assets_manifest.json` 交给图文资产准备和分析流程
 
 因此：
-- `paper-search` 负责“找候选 + 排重 + 输出结构化结果”
-- `start-my-day` 负责“编辑式选择 + 笔记写作 + top 3 深度分析”
+- `paper-search` 负责“找候选 + 排重 + 输出结构化结果 + 下载选中论文 PDF”
+- `start-my-day` 负责“编辑式选择 + 图文审阅 + 笔记写作”
 
 # 重要规则
 

@@ -121,11 +121,13 @@ uv run python scripts/scan_existing_notes.py \
   --vault "$OBSIDIAN_VAULT_PATH" \
   --output existing_notes_index.json
 
-# 再调用 paper-search 的真实检索脚本
+# 再调用 paper-search 的真实检索脚本，并同步输出 top 5 选择结果
 uv run python ../paper-search/scripts/search_arxiv.py \
   --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
   --existing-index existing_notes_index.json \
   --output paper_search_candidates.json \
+  --selected-output selected_papers.json \
+  --vault-root "$OBSIDIAN_VAULT_PATH" \
   --max-results 200 \
   --top-n 25
 
@@ -175,18 +177,18 @@ cat paper_search_candidates_enriched.json
 ### 3.2 二次筛查规则
 
 `start-my-day` 必须基于 `paper_search_candidates_enriched.json` 做一轮 LLM 二次策展：
-- 从候选池中最终精选 3-5 篇
+- 从候选池中最终精选固定 **5 篇**，并额外输出 `selected_papers.json`
 - 不能重新选回 `excluded_duplicates` 中的论文
 - 不能机械照搬分数前几名
 - 需要兼顾 topic diversity、今日值得读的价值、与已有笔记的非重复性
 - 优先利用 `automation_links` 与 `link_enrichment` 中的 repo / project / demo 信息辅助判断论文是否适合继续深挖
-- 最终写入 daily note 的，是这轮二次筛查后的结果
+- 最终写入 daily note 的，是这轮二次筛查后的 5 篇论文
 
 ## 步骤4：生成今日推荐笔记
 
 ### 4.1 读取二次筛查结果
 
-从 `paper-search` 返回并补齐链接的候选池中，经过 LLM 二次筛查，最终选出 3-5 篇论文写入推荐笔记：
+从 `paper-search` 返回并补齐链接的候选池中，经过 LLM 二次筛查，最终选出固定 5 篇论文写入推荐笔记，并将这 5 篇保存到 `selected_papers.json`：
 - 每篇论文仍保留完整信息：ID、标题、作者、摘要、评分、匹配领域
 - 若存在 `automation_links.repo`、`automation_links.project`、`automation_links.demo`，应优先在推荐理由与后续代码学习待办中加以利用
 - 推荐顺序允许不完全等同于原始分数排序，但必须给出明确的编辑性选择理由
@@ -596,11 +598,13 @@ uv run python scripts/link_keywords.py \
      --vault "$OBSIDIAN_VAULT_PATH" \
      --output existing_notes_index.json
 
-   # 再调用 paper-search 的真实检索脚本
+   # 再调用 paper-search 的真实检索脚本，并输出 top 5 选择结果
    uv run python ../paper-search/scripts/search_arxiv.py \
      --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
      --existing-index existing_notes_index.json \
      --output paper_search_candidates.json \
+     --selected-output selected_papers.json \
+     --vault-root "$OBSIDIAN_VAULT_PATH" \
      --max-results 200 \
      --top-n 25 \
      --target-date "{目标日期}"  # 如果用户指定了日期，替换为实际日期
@@ -609,10 +613,18 @@ uv run python scripts/link_keywords.py \
 4. **读取候选结果并做二次筛查**
    - 从 `paper_search_candidates_enriched.json` 中读取候选池
    - 候选池已经经过脚本级打分、初步排重与链接补齐
-   - 再由 `start-my-day` 做 LLM 二次策展，最终精选 3-5 篇
+   - 再由 `start-my-day` 做 LLM 二次策展，最终固定精选 5 篇
+   - 将 5 篇论文写入 `selected_papers.json`
    - 每篇候选论文包含：ID、标题、作者、摘要、评分、匹配领域、`note_filename`，以及 `automation_links` / `link_enrichment`
 
-5. **生成推荐笔记（包含关键词链接）**
+5. **先准备图文资产，再生成推荐笔记**
+   - 调用 `paper-search` 的下载/准备脚本，为 `selected_papers.json` 中的 5 篇论文下载 PDF，生成 `paper_assets_manifest.json`
+   - 调用 `extract-images-and-text`（由原 `extract-paper-images` 重构）读取 `paper_assets_manifest.json`
+   - 为每篇论文产出：`images/`、图片索引、`text/full_text.md`、`text/sections.json`、`text/figure_context.json`
+   - 汇总生成 `prepared_paper_assets.json`
+   - **必须先查看图片和对应文字再写推荐**：编排 daily note 前，必须基于 `prepared_paper_assets.json` 检查图片、图注、附近段落与章节文字，再决定每篇论文是否配图以及配哪张图
+
+6. **生成推荐笔记（包含关键词链接）**
    - 创建 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
    - **按评分排序**：所有论文按推荐评分从高到低排列
    - **每篇论文追加代码学习待办**：
@@ -623,12 +635,13 @@ uv run python scripts/link_keywords.py \
      - 在“代码学习待办”后追加“读后心得 / 你的总结”区域
      - 若用户尚未填写，则放置一句轻松的占位文案，例如“等待记录心得，期待您的输出”
      - 若该区域已有用户手写内容，则重新生成时保留原内容
-   - **前3篇特殊处理**：
+   - **前5篇都要做图文审阅**：
      - 论文名称用 wikilink 格式：`[[论文名字]]`
-     - 在"一句话总结"后插入经语义筛选的图片（方法/架构图优先，其次关键结果图）
+     - 写推荐前先基于 `prepared_paper_assets.json` 检查图片、图注、附近段落和章节文字
+     - 只有图文语义一致时才插入图片，优先方法/架构图，其次关键结果图
      - 在"详细报告"字段显示 wikilink 关联
-   - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
-   - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
+   - **总结图片规则**：从这 5 篇论文里语义筛选 2-3 张图插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+   - **其余未选中的图片不显示**：如无通过语义验证的图片，不显示图片占位
    - **关键词自动链接**（重要！）：
      - 在生成笔记后，扫描文本中的关键词
      - 使用 `existing_notes_index.json` 进行匹配
@@ -636,9 +649,9 @@ uv run python scripts/link_keywords.py \
      - 保留已有 wikilink 不被修改
      - 不替换代码块中的内容
 
-6. **对前三篇论文执行深度分析**
+7. **对选中的 5 篇论文执行资产准备与分析**
    ```bash
-   # 对每篇前三论文执行以下操作
+   # 对 selected_papers.json 中的每篇论文执行以下操作
 
    # 步骤1：检查论文是否已有笔记
    # 在 vibe_research/20_Research/Papers/ 目录中搜索
@@ -646,26 +659,26 @@ uv run python scripts/link_keywords.py \
    # - 按论文标题搜索（模糊匹配）
    # - 按论文标题关键词搜索（如 "Pragmatics", "Reporting Bias"）
 
-   # 步骤2：根据检查结果决定处理方式
-   if 已有笔记:
-       # 不生成新的详细报告
-       # 使用已有的笔记路径
-       # 只提取图片（如果没有图片的话）
-   else:
-       # 提取候选图片（后续做语义筛选）
-       /extract-paper-images [论文ID]
+   # 步骤2：统一准备 PDF / 图片 / 文字资产
+   uv run python ../paper-search/scripts/prepare_paper_assets.py \
+     --selected selected_papers.json \
+     --output paper_assets_manifest.json \
+     --vault-root "$OBSIDIAN_VAULT_PATH"
 
-       # 生成详细分析报告
-       /paper-analyze [论文ID]
+   uv run python ../extract-paper-images/scripts/extract_images_and_text.py \
+     --manifest paper_assets_manifest.json \
+     --output prepared_paper_assets.json
+
+   # 步骤3：基于准备好的资产执行分析
+   /paper-analyze selected_papers.json
    ```
    - **如果已有笔记**：
-     - 不重复生成详细报告
-     - 使用已有笔记路径作为 wikilink
-     - 检查是否需要提取图片（如果没有 images 目录或 images 目录为空）
+     - 不重复生成新的详细报告
+     - 但仍需要检查 `prepared_paper_assets.json` 是否已补齐图片与文字资产
      - 在推荐笔记的"详细报告"字段引用已有笔记
    - **如果没有笔记**：
-     - 提取候选图片并执行语义筛选后保存到 vault
-     - 生成详细的论文分析报告
+     - 先完成 PDF 下载、图片提取、文本提取和图文语义筛选
+     - 再调用 `paper-analyze` 基于准备好的资产生成详细分析报告
      - 在推荐笔记中添加图片和详细报告链接
 
 ## 临时文件清理
