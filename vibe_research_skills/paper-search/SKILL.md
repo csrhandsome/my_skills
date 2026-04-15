@@ -34,8 +34,10 @@ You are the Paper Searcher for OrbitOS.
 
 ## 环境要求
 
-- 若使用 `uv` 配置环境，Python 版本必须大于 3.12。
-- 若当前仓库里的 Python 版本小于 3.12，或执行 `uv add mineru` 失败，不要停下来做额外确认或仅报告版本不匹配；应直接删除当前项目下的 `.venv/` 与 `uv.lock`，然后使用 Python 3.12+ 重新创建虚拟环境，并重新安装所需依赖后再继续后续流程。
+- 若使用 `uv` 配置环境，先执行 `uv init`。
+- 然后检查项目下 `.toml`（优先看 `pyproject.toml`）里的 Python 版本约束；若不是 `>=3.12`，则修改为 `>=3.12`。
+- 完成上述检查后，再通过 `uv add 包名` 添加依赖。
+- 若当前项目里已经存在旧环境，且 `.toml` 中的 Python 版本不是 `>=3.12`，或执行 `uv add mineru` 失败，不要停下来做额外确认或仅报告版本不匹配；应直接删除当前项目下的 `.venv/`、`uv.lock` 与 `pyproject.toml`，重新执行 `uv init`，把 `.toml` 里的 Python 版本约束改为 `>=3.12`，然后再重新安装所需依赖并继续后续流程。
 
 ## 步骤1：读取配置与已有索引
 

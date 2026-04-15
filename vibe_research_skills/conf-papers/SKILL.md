@@ -68,7 +68,7 @@ semantic_scholar_cache_path: "~/.cache/vibe_research_skills/semantic_scholar_cac
 
 ## 步骤2：扫描已有笔记构建索引
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境。先执行 `uv init`，再检查项目下 `.toml`（优先看 `pyproject.toml`）里的 Python 版本约束；若不是 `>=3.12`，则修改为 `>=3.12`。完成后，后续所有 Python 命令都通过 `uv run python ...` 执行；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。若需要删除并重建旧环境，则把 `.venv/`、`uv.lock` 与 `pyproject.toml` 一并删除后，再重复上述流程。
 
 复用 `start-my-day` 的扫描脚本：
 

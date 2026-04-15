@@ -112,7 +112,7 @@ Then use this language setting throughout the workflow:
 不要再直接调用本目录下的 `scripts/search_arxiv.py`。
 必须先生成 `existing_notes_index.json`，再调用 `paper-search/scripts/search_arxiv.py`。
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。使用 `uv` 配置环境时，Python 版本必须大于 3.12。若当前仓库里的 Python 版本小于 3.12，或执行 `uv add mineru` 失败，不要停下来做额外确认或仅报告版本不匹配；应直接删除当前项目下的 `.venv/` 与 `uv.lock`，然后使用 Python 3.12+ 重新创建虚拟环境，并重新安装所需依赖后再继续后续流程。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境。先执行 `uv init`，再检查项目下 `.toml`（优先看 `pyproject.toml`）里的 Python 版本约束；若不是 `>=3.12`，则修改为 `>=3.12`。完成上述检查后，后续所有 Python 命令都通过 `uv run python ...` 执行；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。若当前项目里已经存在旧环境，且 `.toml` 中的 Python 版本不是 `>=3.12`，或执行 `uv add mineru` 失败，不要停下来做额外确认或仅报告版本不匹配；应直接删除当前项目下的 `.venv/`、`uv.lock` 与 `pyproject.toml`，重新执行 `uv init`，把 `.toml` 里的 Python 版本约束改为 `>=3.12`，然后再重新安装所需依赖后继续后续流程。
 
 ```bash
 # 先扫描已有论文，得到现有索引
