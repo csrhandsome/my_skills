@@ -338,9 +338,9 @@ A: 检查以下几点：
 ### Q: 图片提取失败？
 A:
 1. 如果系统安装了 `uv`，进入 Obsidian Vault 目录；如果环境还不存在，先执行 `uv init`
-2. 在该环境中安装 PyMuPDF：`uv add PyMuPDF`
+2. 在该环境中安装 MinerU：`uv add mineru`
 3. 后续通过 `uv run python ...` 运行图片提取相关脚本
-4. 如果没有 `uv`，再使用 `pip install PyMuPDF`
+4. 如果没有 `uv`，再使用 `pip install mineru`
 5. 检查 arXiv ID 格式是否正确（如 2602.12345）
 
 ### Q: 关键词自动链接不准确？

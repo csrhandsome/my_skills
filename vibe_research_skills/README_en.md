@@ -334,9 +334,9 @@ A: Check the following:
 ### Q: Image extraction failed?
 A:
 1. If `uv` is available, go to your Obsidian Vault directory; if the environment does not exist yet, run `uv init`
-2. Install PyMuPDF in that environment: `uv add PyMuPDF`
+2. Install MinerU in that environment: `uv add mineru`
 3. Run image extraction scripts with `uv run python ...`
-4. If `uv` is not available, use `pip install PyMuPDF`
+4. If `uv` is not available, use `pip install mineru`
 5. Check if arXiv ID format is correct (e.g., 2602.12345)
 
 ### Q: Auto keyword linking not accurate?
