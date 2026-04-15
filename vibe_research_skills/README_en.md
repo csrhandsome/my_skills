@@ -14,10 +14,10 @@ This is a collection of Claude Code Skills for automating research paper search,
 ## Features
 
 ### 1. start-my-day - Daily Paper Recommendations
-- Search papers from arXiv in the last month
-- Search highly-cited papers from Semantic Scholar in the past year
-- Comprehensive scoring based on relevance, recency, popularity, and quality
-- Auto-generate daily overview and recommendation list
+- First scan existing papers in the vault to build an index and duplicate filter basis
+- Call `paper-search` to fetch recent and high-signal candidate papers
+- Run a second-pass LLM curation step and finally select 3-5 papers
+- Auto-generate the daily overview and recommendation list
 - Top 3 papers get detailed analysis and image extraction
 - Auto-link keywords to existing notes
 
@@ -40,10 +40,12 @@ This is a collection of Claude Code Skills for automating research paper search,
 - Auto-generate image index
 - Save to notes directory's images subfolder
 
-### 4. paper-search - Paper Note Search
-- Search existing notes
-- Support searching by title, author, keywords, domain
-- Sort by relevance score
+### 4. paper-search - Canonical Paper Retrieval Entry Point
+- Own the real external paper search logic
+- Resolve research domains and arXiv categories from `preference.md`
+- Search recent arXiv papers plus hot papers
+- Filter duplicates before and after search using the existing-notes index
+- Output a structured JSON candidate pool for `start-my-day`
 
 ### 5. conf-papers - Top Conference Paper Recommendations
 - Support both `computer` and `hci` presets
@@ -128,6 +130,8 @@ fi
 
 All later `python scripts/...` commands should be run as `uv run python ...` inside this environment. If you need extra packages, use `uv add <package>`. If `uv` is not available, fall back to `pip install -r requirements.txt`.
 
+When using `uv` to manage the environment, the Python version must be greater than 3.12. If the current repository is using a Python version lower than 3.12 and `uv add mineru` fails, delete the project's `.venv/` directory and `uv.lock` file, then recreate the virtual environment with a compatible Python version and reinstall the required dependencies.
+
 ### Step 2: Create Config File
 
 Copy `config.example.yaml` and modify:
@@ -166,11 +170,11 @@ cp config.yaml "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preferenc
 
 If you don't want to set environment variables, you can specify paths via parameters each time.
 
-If `uv` is available, these commands should also be run as `uv run python ...` inside the initialized environment under `$OBSIDIAN_VAULT_PATH`, and additional dependencies should be installed with `uv add <package>`.
+If `uv` is available, these commands should also be run as `uv run python ...` inside the initialized environment under `$OBSIDIAN_VAULT_PATH`, and additional dependencies should be installed with `uv add <package>`. When using `uv` to manage the environment, the Python version must be greater than 3.12; if the current repository is using a Python version lower than 3.12 and `uv add mineru` fails, delete the project's `.venv/` directory and lock file, then recreate the virtual environment with a compatible Python version and reinstall the required dependencies.
 
 ```bash
-uv run python scripts/search_arxiv.py --config "/your/path/vibe_research/research_preference/preference.md"
-uv run python scripts/scan_existing_notes.py --vault "/your/obsidian/vault"
+uv run python paper-search/scripts/search_arxiv.py --config "/your/path/vibe_research/research_preference/preference.md"
+uv run python start-my-day/scripts/scan_existing_notes.py --vault "/your/obsidian/vault"
 uv run python scripts/generate_note.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --authors "Author" --domain "LLM" --language "en"
 uv run python scripts/update_graph.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --domain "LLM" --language "en"
 ```
@@ -334,10 +338,12 @@ A: Check the following:
 ### Q: Image extraction failed?
 A:
 1. If `uv` is available, go to your Obsidian Vault directory; if the environment does not exist yet, run `uv init`
-2. Install MinerU in that environment: `uv add mineru`
-3. Run image extraction scripts with `uv run python ...`
-4. If `uv` is not available, use `pip install mineru`
-5. Check if arXiv ID format is correct (e.g., 2602.12345)
+2. When using `uv` to manage the environment, the Python version must be greater than 3.12
+3. Install MinerU in that environment: `uv add mineru`
+4. If the current repository is using a Python version lower than 3.12 and `uv add mineru` fails, delete the project's `.venv/` directory and `uv.lock` file, then recreate the virtual environment with a compatible Python version and reinstall the required dependencies
+5. Run image extraction scripts with `uv run python ...`
+6. If `uv` is not available, use `pip install mineru`
+7. Check if arXiv ID format is correct (e.g., 2602.12345)
 
 ### Q: Auto keyword linking not accurate?
 A: You can modify the `COMMON_WORDS` set in `start-my-day/scripts/link_keywords.py` to add words you don't want auto-linked
@@ -354,23 +360,23 @@ A: Set `OBSIDIAN_VAULT_PATH` environment variable, or specify path via `--vault`
 
 ### Modify Search arXiv Categories
 
-Specify via `--categories` parameter when calling `search_arxiv.py`:
+Specify via `--categories` parameter when calling `paper-search/scripts/search_arxiv.py`:
 
 ```bash
-uv run python scripts/search_arxiv.py --categories "cs.AI,cs.LG,cs.CL,cs.CV"
+uv run python paper-search/scripts/search_arxiv.py --categories "cs.AI,cs.LG,cs.CL,cs.CV"
 ```
 
 ### Modify Daily Recommendation Count
 
-Specify via `--top-n` parameter when calling `search_arxiv.py`:
+Specify via `--top-n` parameter when calling `paper-search/scripts/search_arxiv.py`:
 
 ```bash
-uv run python scripts/search_arxiv.py --top-n 15
+uv run python paper-search/scripts/search_arxiv.py --top-n 15
 ```
 
 ### Modify Scoring Weights
 
-Adjust weights in the `calculate_recommendation_score` function in `start-my-day/scripts/search_arxiv.py`.
+Adjust weights in the `calculate_recommendation_score` function in `paper-search/scripts/search_arxiv.py`.
 
 ## How It Works
 

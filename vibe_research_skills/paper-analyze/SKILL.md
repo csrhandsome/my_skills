@@ -262,7 +262,7 @@ INDEX_PATH="${IMAGES_DIR}/index.md"
 
 ### 4.2 使用Python生成笔记（正确处理Obsidian格式）
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。使用 `uv` 配置环境时，Python 版本必须大于 3.12。若当前仓库里的 Python 版本小于 3.12，且执行 `uv add mineru` 失败，则删除当前项目下的 `.venv/` 与 `uv.lock` 后，使用符合要求的 Python 重新创建虚拟环境并重新安装所需依赖。
 
 ```bash
 # 调用外部脚本生成笔记；若使用 uv 环境，请先在 "$OBSIDIAN_VAULT_PATH" 下执行 uv init（如需）

@@ -22,9 +22,9 @@
 ## 功能特点
 
 ### 1. start-my-day - 每日论文推荐
-- 从 arXiv 搜索最近一个月的论文
-- 从 Semantic Scholar 搜索过去一年的高热度论文
-- 基于相关性、新近性、热门度、质量四个维度综合评分
+- 先扫描当前 vault 中已有论文，构建索引和排重依据
+- 调用 `paper-search` 获取最近论文与高热度论文候选池
+- 基于非重复候选做二次 LLM 策展，最终精选 3-5 篇
 - 自动生成今日概览和推荐列表
 - 前三篇论文自动生成详细分析和提取图片
 - 自动链接关键词到已有笔记
@@ -48,10 +48,12 @@
 - 自动生成图片索引
 - 保存到笔记目录的 images 子目录
 
-### 4. paper-search - 论文笔记搜索
-- 在已有笔记中搜索论文
-- 支持按标题、作者、关键词、领域搜索
-- 相关性评分排序
+### 4. paper-search - 标准论文检索入口
+- 负责真实的外部论文搜索
+- 根据 `preference.md` 解析研究方向和 arXiv 分类
+- 搜索 recent arXiv + hot papers
+- 结合已有笔记索引做搜索前后排重
+- 输出结构化 JSON 候选池给 `start-my-day` 消费
 
 ### 5. conf-papers - 顶会论文搜索推荐
 - 支持 `computer` / `hci` 两套预设
@@ -138,6 +140,8 @@ fi
 
 后续所有 `python scripts/...` 命令都应改为在这个环境中通过 `uv run python ...` 执行；如果需要新增依赖，统一使用 `uv add 包名`；如果系统没有 `uv`，再退回使用全局 `pip install -r requirements.txt`。
 
+使用 `uv` 配置环境时，Python 版本必须大于 3.12。若当前仓库里的 Python 版本小于 3.12，且执行 `uv add mineru` 失败，则删除当前项目下的 `.venv/` 与 `uv.lock` 后，使用符合要求的 Python 重新创建虚拟环境并重新安装所需依赖。
+
 ### 步骤2：创建配置文件
 
 复制 `config.example.yaml` 并修改：
@@ -171,11 +175,11 @@ cp config.yaml "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preferenc
 
 如果不想设置环境变量，也可以在每次调用脚本时通过参数指定路径。
 
-如果系统安装了 `uv`，这些命令也应通过 `uv run python ...` 在 `$OBSIDIAN_VAULT_PATH` 下已初始化的环境中执行；依赖新增统一使用 `uv add 包名`。
+如果系统安装了 `uv`，这些命令也应通过 `uv run python ...` 在 `$OBSIDIAN_VAULT_PATH` 下已初始化的环境中执行；依赖新增统一使用 `uv add 包名`。使用 `uv` 配置环境时，Python 版本必须大于 3.12；若当前仓库里的 Python 版本小于 3.12，且执行 `uv add mineru` 失败，则删除当前项目下的 `.venv/` 与 `uv.lock` 后，使用符合要求的 Python 重新创建虚拟环境并重新安装所需依赖。
 
 ```bash
-uv run python scripts/search_arxiv.py --config "/your/path/vibe_research/research_preference/preference.md"
-uv run python scripts/scan_existing_notes.py --vault "/your/obsidian/vault"
+uv run python paper-search/scripts/search_arxiv.py --config "/your/path/vibe_research/research_preference/preference.md"
+uv run python start-my-day/scripts/scan_existing_notes.py --vault "/your/obsidian/vault"
 uv run python scripts/generate_note.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --authors "Author" --domain "大模型"
 uv run python scripts/update_graph.py --vault "/your/obsidian/vault" --paper-id "2402.12345" --title "Paper Title" --domain "大模型"
 ```
@@ -338,10 +342,12 @@ A: 检查以下几点：
 ### Q: 图片提取失败？
 A:
 1. 如果系统安装了 `uv`，进入 Obsidian Vault 目录；如果环境还不存在，先执行 `uv init`
-2. 在该环境中安装 MinerU：`uv add mineru`
-3. 后续通过 `uv run python ...` 运行图片提取相关脚本
-4. 如果没有 `uv`，再使用 `pip install mineru`
-5. 检查 arXiv ID 格式是否正确（如 2602.12345）
+2. 使用 `uv` 配置环境时，Python 版本必须大于 3.12
+3. 在该环境中安装 MinerU：`uv add mineru`
+4. 如果当前仓库里的 Python 版本小于 3.12，且执行 `uv add mineru` 失败，则删除当前项目下的 `.venv/` 与 `uv.lock` 后，使用符合要求的 Python 重新创建虚拟环境并重新安装所需依赖
+5. 后续通过 `uv run python ...` 运行图片提取相关脚本
+6. 如果没有 `uv`，再使用 `pip install mineru`
+7. 检查 arXiv ID 格式是否正确（如 2602.12345）
 
 ### Q: 关键词自动链接不准确？
 A: 可以在 `start-my-day/scripts/link_keywords.py` 中修改 `COMMON_WORDS` 集合，添加你不需要自动链接的词
@@ -358,23 +364,23 @@ A: 设置 `OBSIDIAN_VAULT_PATH` 环境变量，或在调用脚本时通过 `--va
 
 ### 修改搜索的 arXiv 分类
 
-在调用 `search_arxiv.py` 时通过 `--categories` 参数指定：
+在调用 `paper-search/scripts/search_arxiv.py` 时通过 `--categories` 参数指定：
 
 ```bash
-uv run python scripts/search_arxiv.py --categories "cs.AI,cs.LG,cs.CL,cs.CV"
+uv run python paper-search/scripts/search_arxiv.py --categories "cs.AI,cs.LG,cs.CL,cs.CV"
 ```
 
 ### 修改每天推荐的论文数量
 
-在调用 `search_arxiv.py` 时通过 `--top-n` 参数指定：
+在调用 `paper-search/scripts/search_arxiv.py` 时通过 `--top-n` 参数指定：
 
 ```bash
-uv run python scripts/search_arxiv.py --top-n 15
+uv run python paper-search/scripts/search_arxiv.py --top-n 15
 ```
 
 ### 修改评分权重
 
-在 `start-my-day/scripts/search_arxiv.py` 的 `calculate_recommendation_score` 函数中调整权重。
+在 `paper-search/scripts/search_arxiv.py` 的 `calculate_recommendation_score` 函数中调整权重。
 
 ## 工作原理
 

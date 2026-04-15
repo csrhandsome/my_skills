@@ -11,7 +11,7 @@ import sys
 import argparse
 import logging
 from pathlib import Path, PurePosixPath
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, Any
 import yaml
 
 from common_words import COMMON_WORDS
@@ -98,6 +98,71 @@ def normalize_alias(text: str) -> str:
     return normalized
 
 
+def extract_arxiv_ids(*values: Any) -> List[str]:
+    """从 frontmatter / 文件名 / 文本片段中提取 arXiv ID。"""
+    pattern = re.compile(r'(?:(?:arxiv:)|(?:abs/)|(?:pdf/))?(\d{4}\.\d{4,5})(?:v\d+)?', re.IGNORECASE)
+    found: List[str] = []
+
+    def _walk(value: Any):
+        if value is None:
+            return
+        if isinstance(value, str):
+            for match in pattern.findall(value):
+                found.append(match)
+            return
+        if isinstance(value, dict):
+            for nested in value.values():
+                _walk(nested)
+            return
+        if isinstance(value, (list, tuple, set)):
+            for nested in value:
+                _walk(nested)
+
+    for value in values:
+        _walk(value)
+
+    return list(dict.fromkeys(found))
+
+
+def build_duplicate_metadata(notes: List[Dict]) -> Dict[str, Any]:
+    """构建用于重复论文筛除的稳定索引。"""
+    seen_arxiv_ids: Dict[str, List[str]] = {}
+    seen_title_aliases: Dict[str, List[str]] = {}
+    seen_short_aliases: Dict[str, List[str]] = {}
+    note_paths_by_alias: Dict[str, List[str]] = {}
+
+    def _add(mapping: Dict[str, List[str]], key: str, path: str):
+        if not key:
+            return
+        if key not in mapping:
+            mapping[key] = []
+        if path not in mapping[key]:
+            mapping[key].append(path)
+
+    for note in notes:
+        path = note.get('path', '')
+        for arxiv_id in note.get('arxiv_ids', []):
+            _add(seen_arxiv_ids, arxiv_id, path)
+
+        title_alias = note.get('title_alias', '')
+        if title_alias:
+            _add(seen_title_aliases, title_alias, path)
+            _add(note_paths_by_alias, title_alias, path)
+
+        short_alias = note.get('short_name_alias', '')
+        if short_alias:
+            _add(seen_short_aliases, short_alias, path)
+            _add(note_paths_by_alias, short_alias, path)
+
+    return {
+        'notes_scanned': len(notes),
+        'seen_arxiv_ids': seen_arxiv_ids,
+        'seen_title_aliases': seen_title_aliases,
+        'seen_short_aliases': seen_short_aliases,
+        'note_paths_by_alias': note_paths_by_alias,
+    }
+
+
 def should_exclude_note(md_file: Path, papers_dir: Path) -> bool:
     """排除图片目录和自动生成索引等不应进入论文索引的 markdown。"""
     try:
@@ -152,6 +217,15 @@ def scan_notes_directory(papers_dir: Path) -> List[Dict]:
                 'title': frontmatter.get('title', md_file.stem),
                 'tags': frontmatter.get('tags', []),
             }
+
+            note_info['title_alias'] = normalize_alias(note_info['title'])
+            note_info['short_name_alias'] = normalize_alias(note_info['short_name'])
+            note_info['arxiv_ids'] = extract_arxiv_ids(
+                note_info['title'],
+                note_info['short_name'],
+                frontmatter,
+                content,
+            )
 
             # 从标题提取关键词
             title_keywords = extract_keywords_from_title(note_info['title'])
@@ -273,10 +347,18 @@ def main():
     keyword_index = build_keyword_index(notes)
     logger.info("Built index with %d keywords", len(keyword_index))
 
+    duplicate_metadata = build_duplicate_metadata(notes)
+    logger.info(
+        "Built duplicate metadata: %d arXiv IDs, %d title aliases",
+        len(duplicate_metadata['seen_arxiv_ids']),
+        len(duplicate_metadata['seen_title_aliases']),
+    )
+
     # 准备输出
     output = {
         'notes': notes,
-        'keyword_to_notes': keyword_index
+        'keyword_to_notes': keyword_index,
+        'duplicate_metadata': duplicate_metadata,
     }
 
     # 保存结果

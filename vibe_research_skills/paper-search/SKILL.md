@@ -1,140 +1,174 @@
 ---
 name: paper-search
-description: 在已整理的论文笔记中搜索相关内容
-allowed-tools: Read, Grep, Glob
+description: 标准论文检索入口 - 搜索外部论文并结合已有笔记索引做排重，输出结构化候选结果
+allowed-tools: Read, Bash
 ---
 You are the Paper Searcher for OrbitOS.
 
 # 目标
-帮助用户通过关键词、作者、研究领域或特定主题在已有的论文笔记中搜索相关论文。
+
+负责执行真实的论文检索流程：
+- 根据唯一的 `preference.md` 解析研究方向和 arXiv 分类
+- 搜索最近论文与过去一年的高热度论文
+- 结合当前 vault 中已有论文笔记做搜索前后排重
+- 输出给 `start-my-day` 消费的结构化 JSON 候选池
+
+`paper-search` 是检索层，不负责最终的每日推荐写作。
+最终“今天推荐哪 3-5 篇”由 `start-my-day` 的 prompt 做二次策展。
+
+# 输入约定
+
+典型输入包括：
+- `--config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md"`
+- `--existing-index existing_notes_index.json`
+- `--target-date YYYY-MM-DD`
+- `--max-results 200`
+- `--top-n 20` 或 `25`
+
+其中：
+- `config` 必须指向唯一的 `preference.md`
+- `existing-index` 必须来自 `start-my-day/scripts/scan_existing_notes.py`
 
 # 工作流程
 
-## 步骤1：解析搜索查询
+## 环境要求
 
-分析用户的搜索查询以确定：
-1. **搜索类型**
-   - 标题搜索：查询包含特定标题
-   - 作者搜索：查询包含作者姓名
-   - 关键词搜索：查询包含特定关键词
-   - 领域搜索：查询特定领域
-   - 标签搜索：查询包含特定标签
+- 若使用 `uv` 配置环境，Python 版本必须大于 3.12。
+- 若当前仓库里的 Python 版本小于 3.12，且执行 `uv add mineru` 失败，则删除当前项目下的 `.venv/` 与 `uv.lock` 后，使用符合要求的 Python 重新创建虚拟环境并重新安装所需依赖。
 
-2. **提取搜索参数**
-   - 主要搜索词（必须匹配）
-   - 次要关键词（可选）
-   - 排除关键词（可选）
+## 步骤1：读取配置与已有索引
 
-3. **确定搜索范围**
-   - 所有领域（默认）
-   - 特定领域（如果指定）
+1. 读取唯一配置文件：
+   - `$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
+2. 读取已有论文索引：
+   - `existing_notes_index.json`
+3. 提取用于排重的稳定标识：
+   - `seen_arxiv_ids`
+   - `seen_title_aliases`
+   - `note_paths_by_alias`
 
-## 步骤2：执行搜索
+## 步骤2：执行外部论文检索
 
-### 2.1 搜索策略
+使用 `scripts/search_arxiv.py`：
+- 搜索最近 30 天的 arXiv 论文
+- 搜索过去一年高热度论文（Semantic Scholar / OpenAlex）
+- 根据 `preference.md` 中的 research domains 和 categories 打分排序
 
-使用Grep在`vibe_research/20_Research/Papers/`目录中搜索：
-- 标题搜索：在所有文件中搜索标题
-- 作者搜索：搜索frontmatter的authors字段
-- 关键词搜索：搜索文档内容
-- 领域搜索：搜索特定领域文件夹
-
-### 2.2 搜索参数
+示例：
 
 ```bash
-# 按标题搜索
-grep -r -i --include="*.md" "查询关键词" "vibe_research/20_Research/Papers/"
-
-# 按作者搜索
-grep -r -i --include="*.md" "作者姓名" "vibe_research/20_Research/Papers/" | grep -i "author: 作者姓名"
-
-# 按领域搜索
-grep -r "关键词" "vibe_research/20_Research/Papers/领域/"
+cd "$SKILL_DIR"
+uv run python scripts/search_arxiv.py \
+  --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
+  --existing-index existing_notes_index.json \
+  --output paper_search_candidates.json \
+  --max-results 200 \
+  --top-n 25 \
+  --target-date "{目标日期}"
 ```
 
-## 步骤3：处理搜索结果
+## 步骤3：搜索前排重
 
-### 3.1 整理结果
+在候选进入最终候选池前，优先做确定性排重：
+- 相同 arXiv ID：直接排除
+- 相同归一化标题：直接排除
+- 命中 note filename alias：直接排除
 
-1. **提取基本信息**
-   - 论文标题
-   - 作者
-   - 发布时间
-   - 领域
-   - 文件路径
+这些被排除的结果进入 `excluded_duplicates`，不会进入 `candidates`。
 
-2. **匹配上下文**
-   - 提取匹配行（关键词出现位置）
-   - 用于计算相关性
+## 步骤4：搜索后排重
 
-### 3.2 计算相关性评分
+在需要时，再运行 `scripts/filter_seen_papers.py` 做最终清洗：
 
-- **标题匹配**（高权重）：+10分
-- **内容匹配**（中权重）：+5分
-- **作者匹配**（高权重）：+8分
-- **领域匹配**（中权重）：+5分
-- **标签匹配**（中权重）：+3分
-
-### 3.3 应用筛选条件
-
-- 排除包含排除关键词的论文
-- 移除质量评分低于阈值的论文（可选）
-
-## 步骤4：展示结果
-
-### 4.1 输出格式
-
-按研究领域分组，每篇论文显示：
-
-```markdown
-## 论文搜索结果
-
-**搜索关键词**：[查询词]
-
-### 大模型方向（N篇）
-
-#### 1. [[论文标题]] - [[链接]]
-- **相关性**：⭐ [X.X/10]
-- **作者**：[作者1, 作者2]
-- **发布时间**：YYYY-MM-DD
-- **领域**：具体子领域
-- **匹配位置**：标题
-
-### 多模态技术（N篇）
-
-[类似格式]
+```bash
+cd "$SKILL_DIR"
+uv run python scripts/filter_seen_papers.py \
+  --input paper_search_candidates.json \
+  --existing-index existing_notes_index.json \
+  --output paper_search_candidates.filtered.json
 ```
 
-### 未找到结果
+这个阶段用于处理：
+- 合并 recent / hot 结果后残留的重复
+- 元数据不完整导致的早期漏判
 
-如果搜索结果为空：
-- 提供搜索建议
-- 建议尝试其他关键词
-- 建议扩大搜索范围
+## 步骤5：输出结构化 JSON
 
-## 重要规则
+输出文件默认是 `paper_search_candidates.json`。
 
-- **搜索效率**：使用Grep快速搜索，避免读取大文件
-- **不区分大小写**：使用-i标志
-- **精确匹配**：优先显示精确匹配
-- **相关性优先**：标题匹配权重最高
-- **保持简洁**：每个论文显示核心信息
-- **支持wikilink**：使用[[论文标题]]格式创建链接
+结构示例：
 
-## 使用说明
+```json
+{
+  "query_context": {
+    "target_date": "2026-04-15",
+    "config_path": ".../preference.md",
+    "categories": ["cs.AI", "cs.LG"],
+    "max_results": 200,
+    "candidate_pool_size": 25,
+    "search_modes": ["recent_arxiv", "hot_semantic_scholar"]
+  },
+  "existing_corpus": {
+    "notes_scanned": 412,
+    "seen_arxiv_ids": ["2501.01234"],
+    "seen_title_aliases": ["attention is all you need"],
+    "index_path": ".../existing_notes_index.json"
+  },
+  "filter_summary": {
+    "retrieved_recent": 165,
+    "retrieved_hot": 24,
+    "scored_total": 98,
+    "pre_filtered_duplicates": 17,
+    "post_filtered_duplicates": 3,
+    "remaining_candidates": 25
+  },
+  "candidates": [
+    {
+      "paper_id": "arxiv:2604.12345",
+      "arxiv_id": "2604.12345",
+      "title": "Example Paper",
+      "title_normalized": "example paper",
+      "authors": ["A Author"],
+      "summary": "...",
+      "published_date": "2026-04-12",
+      "categories": ["cs.AI"],
+      "matched_domain": "llm_agents",
+      "matched_keywords": ["agent", "planning"],
+      "scores": {
+        "relevance": 2.4,
+        "recency": 3.0,
+        "popularity": 2.0,
+        "quality": 2.0,
+        "recommendation": 2.46
+      },
+      "duplicate_status": {
+        "is_duplicate": false,
+        "match_type": null,
+        "matched_note_paths": []
+      },
+      "note_filename": "Example_Paper"
+    }
+  ],
+  "excluded_duplicates": []
+}
+```
 
-当用户搜索论文时：
-1. 使用特定语法：
-   - 搜索标题：`搜索 "论文标题"`
-   - 搜索作者：`搜索 "作者姓名"`
-   - 搜索关键词：`搜索 "关键词"`
-   - 搜索领域：`搜索 "领域"`
+# 与 start-my-day 的关系
 
-2. 支持组合搜索：
-   - 搜索领域 + 关键词：`搜索 "大模型" "量化"`
+`start-my-day` 应该：
+1. 先扫描现有笔记得到 `existing_notes_index.json`
+2. 再调用 `paper-search`
+3. 从 `paper-search.candidates` 中做二次筛查
+4. 最终只精选 3-5 篇写入每日推荐
 
-3. 搜索结果会显示：
-   - 论文标题
-   - 链接到笔记
-   - 相关性评分
-   - 作者和发布时间
+因此：
+- `paper-search` 负责“找候选 + 排重 + 输出结构化结果”
+- `start-my-day` 负责“编辑式选择 + 笔记写作 + top 3 深度分析”
+
+# 重要规则
+
+- 只能使用唯一配置文件：`$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
+- 不负责创建第二份 `preference.md`
+- 不负责最终 daily note 文本写作
+- 必须输出结构化 JSON，而不是只输出自然语言摘要
+- 排重必须是确定性的，不能把是否重复交给 LLM 自行判断
