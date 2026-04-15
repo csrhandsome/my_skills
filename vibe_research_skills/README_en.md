@@ -130,7 +130,7 @@ fi
 
 All later `python scripts/...` commands should be run as `uv run python ...` inside this environment. If you need extra packages, use `uv add <package>`. If `uv` is not available, fall back to `pip install -r requirements.txt`.
 
-When using `uv` to manage the environment, the Python version must be greater than 3.12. If the current repository is using a Python version lower than 3.12 and `uv add mineru` fails, delete the project's `.venv/` directory and `uv.lock` file, then recreate the virtual environment with a compatible Python version and reinstall the required dependencies.
+When using `uv` to manage the environment, the Python version must be greater than 3.12. If the current repository is using a Python version lower than 3.12, or `uv add mineru` fails, do not stop for extra confirmation or only report the version mismatch; instead, delete the project's `.venv/` directory and `uv.lock` file immediately, recreate the virtual environment with Python 3.12+, reinstall the required dependencies, and then continue the workflow.
 
 ### Step 2: Create Config File
 
