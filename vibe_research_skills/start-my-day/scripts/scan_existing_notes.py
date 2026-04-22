@@ -11,12 +11,13 @@ import sys
 import argparse
 import logging
 from pathlib import Path, PurePosixPath
-from typing import List, Dict, Set, Tuple, Any
+from typing import List, Dict, Set, Tuple
 import yaml
 
 from common_words import COMMON_WORDS
 
 logger = logging.getLogger(__name__)
+ARXIV_ID_RE = re.compile(r'(?<!\d)(\d{4}\.\d{4,5})(?:v\d+)?(?!\d)', re.IGNORECASE)
 
 
 def parse_frontmatter(content: str) -> Dict:
@@ -98,68 +99,68 @@ def normalize_alias(text: str) -> str:
     return normalized
 
 
-def extract_arxiv_ids(*values: Any) -> List[str]:
-    """从 frontmatter / 文件名 / 文本片段中提取 arXiv ID。"""
-    pattern = re.compile(r'(?:(?:arxiv:)|(?:abs/)|(?:pdf/))?(\d{4}\.\d{4,5})(?:v\d+)?', re.IGNORECASE)
-    found: List[str] = []
+def extract_arxiv_ids(*fields: object) -> List[str]:
+    """从一组字段中提取稳定的 arXiv ID（去掉版本号）。"""
+    seen = set()
+    arxiv_ids: List[str] = []
 
-    def _walk(value: Any):
-        if value is None:
-            return
-        if isinstance(value, str):
-            for match in pattern.findall(value):
-                found.append(match)
-            return
-        if isinstance(value, dict):
-            for nested in value.values():
-                _walk(nested)
-            return
-        if isinstance(value, (list, tuple, set)):
-            for nested in value:
-                _walk(nested)
+    for field in fields:
+        if field is None:
+            continue
+
+        text = field if isinstance(field, str) else str(field)
+        for match in ARXIV_ID_RE.findall(text):
+            if match not in seen:
+                seen.add(match)
+                arxiv_ids.append(match)
+
+    return arxiv_ids
+
+
+def unique_preserve_order(values: List[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
 
     for value in values:
-        _walk(value)
+        cleaned = value.strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        ordered.append(cleaned)
 
-    return list(dict.fromkeys(found))
+    return ordered
 
 
-def build_duplicate_metadata(notes: List[Dict]) -> Dict[str, Any]:
-    """构建用于重复论文筛除的稳定索引。"""
-    seen_arxiv_ids: Dict[str, List[str]] = {}
-    seen_title_aliases: Dict[str, List[str]] = {}
-    seen_short_aliases: Dict[str, List[str]] = {}
-    note_paths_by_alias: Dict[str, List[str]] = {}
-
-    def _add(mapping: Dict[str, List[str]], key: str, path: str):
-        if not key:
-            return
-        if key not in mapping:
-            mapping[key] = []
-        if path not in mapping[key]:
-            mapping[key].append(path)
+def build_dedupe_index(notes: List[Dict]) -> Dict[str, Dict[str, List[str]]]:
+    """为外部搜索脚本生成稳定排重索引。"""
+    note_paths_by_alias: Dict[str, set] = {}
+    note_paths_by_arxiv_id: Dict[str, set] = {}
+    seen_title_aliases: set = set()
+    seen_arxiv_ids: set = set()
 
     for note in notes:
-        path = note.get('path', '')
+        path = note.get('path')
+        if not path:
+            continue
+
+        for alias in note.get('aliases', []):
+            seen_title_aliases.add(alias)
+            note_paths_by_alias.setdefault(alias, set()).add(path)
+
         for arxiv_id in note.get('arxiv_ids', []):
-            _add(seen_arxiv_ids, arxiv_id, path)
-
-        title_alias = note.get('title_alias', '')
-        if title_alias:
-            _add(seen_title_aliases, title_alias, path)
-            _add(note_paths_by_alias, title_alias, path)
-
-        short_alias = note.get('short_name_alias', '')
-        if short_alias:
-            _add(seen_short_aliases, short_alias, path)
-            _add(note_paths_by_alias, short_alias, path)
+            seen_arxiv_ids.add(arxiv_id)
+            note_paths_by_arxiv_id.setdefault(arxiv_id, set()).add(path)
 
     return {
-        'notes_scanned': len(notes),
-        'seen_arxiv_ids': seen_arxiv_ids,
-        'seen_title_aliases': seen_title_aliases,
-        'seen_short_aliases': seen_short_aliases,
-        'note_paths_by_alias': note_paths_by_alias,
+        'seen_arxiv_ids': sorted(seen_arxiv_ids),
+        'seen_title_aliases': sorted(seen_title_aliases),
+        'note_paths_by_alias': {
+            alias: sorted(paths) for alias, paths in sorted(note_paths_by_alias.items())
+        },
+        'note_paths_by_arxiv_id': {
+            arxiv_id: sorted(paths)
+            for arxiv_id, paths in sorted(note_paths_by_arxiv_id.items())
+        },
     }
 
 
@@ -218,15 +219,6 @@ def scan_notes_directory(papers_dir: Path) -> List[Dict]:
                 'tags': frontmatter.get('tags', []),
             }
 
-            note_info['title_alias'] = normalize_alias(note_info['title'])
-            note_info['short_name_alias'] = normalize_alias(note_info['short_name'])
-            note_info['arxiv_ids'] = extract_arxiv_ids(
-                note_info['title'],
-                note_info['short_name'],
-                frontmatter,
-                content,
-            )
-
             # 从标题提取关键词
             title_keywords = extract_keywords_from_title(note_info['title'])
             note_info['title_keywords'] = title_keywords
@@ -245,6 +237,22 @@ def scan_notes_directory(papers_dir: Path) -> List[Dict]:
                         tag_keywords.append(tag)
 
             note_info['tag_keywords'] = tag_keywords
+            note_info['title_alias'] = normalize_alias(note_info['title'])
+            note_info['short_name_alias'] = normalize_alias(note_info['short_name'])
+            note_info['aliases'] = unique_preserve_order([
+                note_info['title_alias'],
+                note_info['short_name_alias'],
+                normalize_alias(Path(note_info['filename']).stem),
+            ])
+            note_info['arxiv_ids'] = extract_arxiv_ids(
+                note_info['title'],
+                note_info['short_name'],
+                note_info['filename'],
+                note_info['path'],
+                frontmatter.get('paper_id'),
+                frontmatter.get('arxiv_id'),
+                frontmatter.get('id'),
+            )
 
             notes.append(note_info)
 
@@ -346,19 +354,13 @@ def main():
 
     keyword_index = build_keyword_index(notes)
     logger.info("Built index with %d keywords", len(keyword_index))
-
-    duplicate_metadata = build_duplicate_metadata(notes)
-    logger.info(
-        "Built duplicate metadata: %d arXiv IDs, %d title aliases",
-        len(duplicate_metadata['seen_arxiv_ids']),
-        len(duplicate_metadata['seen_title_aliases']),
-    )
+    dedupe_index = build_dedupe_index(notes)
 
     # 准备输出
     output = {
         'notes': notes,
         'keyword_to_notes': keyword_index,
-        'duplicate_metadata': duplicate_metadata,
+        **dedupe_index,
     }
 
     # 保存结果

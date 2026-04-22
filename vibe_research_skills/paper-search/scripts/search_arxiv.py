@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 arXiv + Semantic Scholar 混合架构论文搜索脚本
-用于 paper-search skill，搜索候选论文并结合现有笔记索引做排重。
+用于 start-my-day skill，搜索最近一个月和最近一年的极火、极热门、极优质论文
 """
 
 import xml.etree.ElementTree as ET
@@ -12,7 +12,7 @@ import sys
 import time
 import random
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import List, Dict, Set, Optional, Tuple, Any
 from pathlib import Path
@@ -20,76 +20,235 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-CURRENT_DIR = Path(__file__).resolve().parent
-SKILLS_ROOT = CURRENT_DIR.parent.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
-from shared_workflow_utils import (
-    build_selected_paper_record,
-    normalize_title_alias,
-    title_to_note_filename,
-    write_json_file,
-)
-
 logger = logging.getLogger(__name__)
 
 
-def load_existing_index(index_path: Optional[str]) -> Dict[str, Any]:
-    """读取现有笔记索引，缺失时返回空结构。"""
+def title_to_note_filename(title: str) -> str:
+    """将论文标题转换为 Obsidian 笔记文件名（与 generate_note.py 保持一致）。
+
+    使用与 paper-analyze/scripts/generate_note.py 完全相同的规则，
+    确保 start-my-day 生成的 wikilink 路径能正确指向 paper-analyze 创建的文件。
+    """
+    filename = re.sub(r'[ /\\:*?"<>|]+', '_', title).strip('_')
+    return filename
+
+
+def normalize_arxiv_id(value: Optional[str]) -> Optional[str]:
+    """统一 arXiv ID 表示，去掉前缀和版本号。"""
+    if not value:
+        return None
+
+    match = ARXIV_ID_RE.search(str(value))
+    if not match:
+        return None
+    return match.group(1)
+
+
+def normalize_title_alias(text: str) -> str:
+    """将标题/文件名归一化为稳定的轻量别名。"""
+    return re.sub(r'\s+', ' ', re.sub(r'[\W_]+', ' ', (text or '').lower())).strip()
+
+
+def build_arxiv_query(categories: List[str], start_date: datetime, end_date: datetime) -> str:
+    category_query = " OR ".join([f"cat:{cat}" for cat in categories])
+    date_query = f"submittedDate:[{start_date.strftime('%Y%m%d')}0000 TO {end_date.strftime('%Y%m%d')}2359]"
+    return f"({category_query}) AND {date_query}"
+
+
+def arxiv_result_to_paper(result: Any) -> Dict[str, Any]:
+    """将 `arxiv` 库的 Result 对象转换为现有工作流使用的论文结构。"""
+    arxiv_id = normalize_arxiv_id(result.get_short_id())
+    published = result.published
+    updated = result.updated
+
+    paper = {
+        'id': result.entry_id,
+        'arxiv_id': arxiv_id,
+        'title': ' '.join((result.title or '').split()),
+        'summary': ' '.join((result.summary or '').split()),
+        'authors': [author.name for author in result.authors],
+        'affiliations': [],
+        'published': published.isoformat() if published else None,
+        'published_date': published,
+        'updated': updated.isoformat() if updated else None,
+        'categories': list(result.categories or []),
+        'pdf_url': result.pdf_url,
+        'url': result.entry_id,
+        'source': 'arxiv',
+    }
+    return paper
+
+
+def build_empty_existing_corpus(index_path: Optional[str] = None) -> Dict[str, Any]:
+    return {
+        'notes_scanned': 0,
+        'seen_arxiv_ids': set(),
+        'seen_title_aliases': set(),
+        'note_paths_by_alias': {},
+        'note_paths_by_arxiv_id': {},
+        'index_path': index_path,
+    }
+
+
+def load_existing_corpus(index_path: Optional[str]) -> Dict[str, Any]:
+    """加载已有笔记索引，用于搜索前排重。"""
+    corpus = build_empty_existing_corpus(index_path=index_path)
     if not index_path:
-        return {'notes': [], 'duplicate_metadata': {}}
+        return corpus
 
-    index_file = Path(index_path)
-    if not index_file.exists():
-        logger.warning("Existing index file not found: %s", index_path)
-        return {'notes': [], 'duplicate_metadata': {}}
+    with open(index_path, 'r', encoding='utf-8') as f:
+        index_data = json.load(f) or {}
 
-    with open(index_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    notes = index_data.get('notes', []) or []
+    seen_arxiv_ids = set(index_data.get('seen_arxiv_ids', []) or [])
+    seen_title_aliases = set(index_data.get('seen_title_aliases', []) or [])
 
-    if not isinstance(data, dict):
-        return {'notes': [], 'duplicate_metadata': {}}
-    return data
+    note_paths_by_alias = {
+        alias: list(paths)
+        for alias, paths in (index_data.get('note_paths_by_alias', {}) or {}).items()
+    }
+    note_paths_by_arxiv_id = {
+        arxiv_id: list(paths)
+        for arxiv_id, paths in (index_data.get('note_paths_by_arxiv_id', {}) or {}).items()
+    }
+
+    for note in notes:
+        path = note.get('path')
+        if not path:
+            continue
+
+        alias_candidates = set(note.get('aliases', []) or [])
+        for raw_alias in (
+            note.get('title_alias'),
+            note.get('short_name_alias'),
+            note.get('title'),
+            note.get('short_name'),
+            Path(str(note.get('filename', '') or '')).stem,
+        ):
+            alias = normalize_title_alias(str(raw_alias or ''))
+            if alias:
+                alias_candidates.add(alias)
+
+        for alias in alias_candidates:
+            seen_title_aliases.add(alias)
+            note_paths_by_alias.setdefault(alias, [])
+            if path not in note_paths_by_alias[alias]:
+                note_paths_by_alias[alias].append(path)
+
+        arxiv_id_candidates = set(note.get('arxiv_ids', []) or [])
+        for raw_value in (
+            note.get('title'),
+            note.get('short_name'),
+            note.get('filename'),
+            note.get('path'),
+        ):
+            arxiv_id = normalize_arxiv_id(raw_value)
+            if arxiv_id:
+                arxiv_id_candidates.add(arxiv_id)
+
+        for arxiv_id in arxiv_id_candidates:
+            seen_arxiv_ids.add(arxiv_id)
+            note_paths_by_arxiv_id.setdefault(arxiv_id, [])
+            if path not in note_paths_by_arxiv_id[arxiv_id]:
+                note_paths_by_arxiv_id[arxiv_id].append(path)
+
+    corpus.update(
+        {
+            'notes_scanned': len(notes),
+            'seen_arxiv_ids': seen_arxiv_ids,
+            'seen_title_aliases': seen_title_aliases,
+            'note_paths_by_alias': note_paths_by_alias,
+            'note_paths_by_arxiv_id': note_paths_by_arxiv_id,
+        }
+    )
+    return corpus
 
 
-def match_existing_paper(paper: Dict[str, Any], duplicate_metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """根据现有索引判断论文是否已存在。"""
-    arxiv_id = paper.get('arxiv_id') or paper.get('arxivId') or ''
+def mark_duplicate_status(paper: Dict[str, Any], existing_corpus: Dict[str, Any]) -> Dict[str, Any]:
+    """标记论文是否已在当前知识库中存在。"""
+    arxiv_id = normalize_arxiv_id(paper.get('arxiv_id') or paper.get('arxivId'))
     title_alias = normalize_title_alias(paper.get('title', ''))
     note_filename_alias = normalize_title_alias(title_to_note_filename(paper.get('title', '')))
 
-    seen_arxiv_ids = duplicate_metadata.get('seen_arxiv_ids', {}) or {}
-    seen_title_aliases = duplicate_metadata.get('seen_title_aliases', {}) or {}
-    note_paths_by_alias = duplicate_metadata.get('note_paths_by_alias', {}) or {}
-
-    if arxiv_id and arxiv_id in seen_arxiv_ids:
-        return {
-            'is_duplicate': True,
-            'match_type': 'arxiv_id',
-            'matched_note_paths': seen_arxiv_ids.get(arxiv_id, []),
-        }
-
-    if title_alias and title_alias in seen_title_aliases:
-        return {
-            'is_duplicate': True,
-            'match_type': 'title_alias',
-            'matched_note_paths': seen_title_aliases.get(title_alias, []),
-        }
-
-    if note_filename_alias and note_filename_alias in note_paths_by_alias:
-        return {
-            'is_duplicate': True,
-            'match_type': 'note_filename_alias',
-            'matched_note_paths': note_paths_by_alias.get(note_filename_alias, []),
-        }
-
-    return {
+    duplicate_status = {
         'is_duplicate': False,
         'match_type': None,
         'matched_note_paths': [],
     }
 
+    if arxiv_id and arxiv_id in existing_corpus['seen_arxiv_ids']:
+        duplicate_status['is_duplicate'] = True
+        duplicate_status['match_type'] = 'arxiv_id'
+        duplicate_status['matched_note_paths'] = sorted(
+            existing_corpus['note_paths_by_arxiv_id'].get(arxiv_id, [])
+        )
+    elif title_alias and title_alias in existing_corpus['seen_title_aliases']:
+        duplicate_status['is_duplicate'] = True
+        duplicate_status['match_type'] = 'title_alias'
+        duplicate_status['matched_note_paths'] = sorted(
+            existing_corpus['note_paths_by_alias'].get(title_alias, [])
+        )
+    elif note_filename_alias and note_filename_alias in existing_corpus['seen_title_aliases']:
+        duplicate_status['is_duplicate'] = True
+        duplicate_status['match_type'] = 'note_filename'
+        duplicate_status['matched_note_paths'] = sorted(
+            existing_corpus['note_paths_by_alias'].get(note_filename_alias, [])
+        )
+
+    paper['duplicate_status'] = duplicate_status
+    return paper
+
+
+def deduplicate_candidate_pool(papers: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int]:
+    """合并 recent/hot 结果时做稳定去重。"""
+    seen_ids = set()
+    seen_titles = set()
+    unique_papers = []
+    removed = 0
+
+    for paper in papers:
+        arxiv_id = normalize_arxiv_id(paper.get('arxiv_id') or paper.get('arxivId'))
+        title_alias = normalize_title_alias(paper.get('title', ''))
+
+        if arxiv_id:
+            if arxiv_id in seen_ids:
+                removed += 1
+                continue
+            seen_ids.add(arxiv_id)
+
+        if title_alias:
+            if title_alias in seen_titles:
+                removed += 1
+                continue
+            seen_titles.add(title_alias)
+
+        if arxiv_id:
+            paper['arxiv_id'] = arxiv_id
+        unique_papers.append(paper)
+
+    return unique_papers, removed
+
+
+def split_existing_duplicates(
+    papers: List[Dict[str, Any]], existing_corpus: Dict[str, Any]
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """用已有笔记索引做搜索前排重。"""
+    if not existing_corpus['index_path']:
+        for paper in papers:
+            mark_duplicate_status(paper, existing_corpus)
+        return papers, []
+
+    kept: List[Dict[str, Any]] = []
+    excluded: List[Dict[str, Any]] = []
+
+    for paper in papers:
+        annotated = mark_duplicate_status(paper, existing_corpus)
+        if annotated['duplicate_status']['is_duplicate']:
+            excluded.append(annotated)
+        else:
+            kept.append(annotated)
+
+    return kept, excluded
 
 try:
     import requests
@@ -99,6 +258,14 @@ except ImportError:
     HAS_REQUESTS = False
     S2_SESSION = None
     logger.warning("requests library not found, using urllib for Semantic Scholar API")
+
+try:
+    import arxiv
+    HAS_ARXIV = True
+except ImportError:
+    arxiv = None
+    HAS_ARXIV = False
+    logger.warning("arxiv library not found, install it with `uv add arxiv` or `pip install arxiv`")
 
 # ---------------------------------------------------------------------------
 # API 配置
@@ -114,6 +281,9 @@ DEFAULT_PREFERENCE_RELATIVE_PATH = os.path.join(
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 SEMANTIC_SCHOLAR_FIELDS = "title,abstract,publicationDate,citationCount,influentialCitationCount,url,authors,authors.affiliations,externalIds"
 OPENALEX_API_URL = "https://api.openalex.org/works"
+ARXIV_ID_RE = re.compile(r'(?<!\d)(\d{4}\.\d{4,5})(?:v\d+)?(?!\d)', re.IGNORECASE)
+ARXIV_PAGE_SIZE = 100
+ARXIV_REQUEST_DELAY_SECONDS = 3.0
 
 # 默认分类关键词映射（当配置中无用户自定义关键词时使用）
 ARXIV_CATEGORY_KEYWORDS = {
@@ -437,8 +607,8 @@ def search_arxiv_by_date_range(
     max_retries: int = 3
 ) -> List[Dict]:
     """
-    使用 arXiv API 搜索指定日期范围内的论文
-    
+    使用 `arxiv` Python 库搜索指定日期范围内的论文
+
     Args:
         categories: arXiv 分类列表
         start_date: 开始日期
@@ -449,34 +619,41 @@ def search_arxiv_by_date_range(
     Returns:
         论文列表
     """
-    # 构建分类查询
-    category_query = "+OR+".join([f"cat:{cat}" for cat in categories])
-    
-    # 构建日期范围查询 (arXiv 使用 YYYYMMDD 格式)
-    date_query = f"submittedDate:[{start_date.strftime('%Y%m%d')}0000+TO+{end_date.strftime('%Y%m%d')}2359]"
-    
-    # 组合查询
-    full_query = f"({category_query})+AND+{date_query}"
-    
-    # 构建 URL
-    url = (
-        f"https://export.arxiv.org/api/query?"
-        f"search_query={full_query}&"
-        f"max_results={max_results}&"
-        f"sortBy=submittedDate&"
-        f"sortOrder=descending"
+    if not HAS_ARXIV:
+        logger.error("Missing `arxiv` library. Install it with `uv add arxiv` or `pip install arxiv`.")
+        return []
+
+    full_query = build_arxiv_query(categories, start_date, end_date)
+    client = arxiv.Client(
+        page_size=min(max_results, ARXIV_PAGE_SIZE),
+        delay_seconds=ARXIV_REQUEST_DELAY_SECONDS,
+        num_retries=max_retries,
     )
-    
+    search = arxiv.Search(
+        query=full_query,
+        max_results=max_results,
+        sort_by=arxiv.SortCriterion.SubmittedDate,
+        sort_order=arxiv.SortOrder.Descending,
+    )
+
+    start_bound = start_date.replace(tzinfo=timezone.utc) if start_date.tzinfo is None else start_date
+    end_bound = end_date.replace(tzinfo=timezone.utc) if end_date.tzinfo is None else end_date
+
     logger.info("[arXiv] Searching papers from %s to %s", start_date.date(), end_date.date())
-    logger.debug("[arXiv] URL: %s...", url[:120])
+    logger.debug("[arXiv] Query: %s", full_query)
     
     for attempt in range(max_retries):
         try:
-            with urllib.request.urlopen(url, timeout=60) as response:
-                xml_content = response.read().decode('utf-8')
-                papers = parse_arxiv_xml(xml_content)
-                logger.info("[arXiv] Found %d papers", len(papers))
-                return papers
+            papers: List[Dict[str, Any]] = []
+            for result in client.results(search):
+                paper = arxiv_result_to_paper(result)
+                published_date = paper.get('published_date')
+                if published_date and not (start_bound <= published_date <= end_bound):
+                    continue
+                papers.append(paper)
+
+            logger.info("[arXiv] Found %d papers", len(papers))
+            return papers
         except Exception as e:
             logger.warning("[arXiv] Error (attempt %d/%d): %s", attempt + 1, max_retries, e)
             if attempt < max_retries - 1:
@@ -1259,23 +1436,26 @@ def main():
     parser.add_argument('--config', type=str,
                         default=default_config or None,
                         help='Path to preference config file (or set OBSIDIAN_VAULT_PATH env var)')
-    parser.add_argument('--output', type=str, default='paper_search_candidates.json',
+    parser.add_argument('--output', type=str, default='arxiv_filtered.json',
                         help='Output JSON file path')
     parser.add_argument('--max-results', type=int, default=200,
                         help='Maximum number of results to fetch from arXiv')
-    parser.add_argument('--top-n', type=int, default=25,
-                        help='Number of candidate papers to return')
+    parser.add_argument('--top-n', type=int, default=10,
+                        help='Number of top papers to return')
     parser.add_argument('--target-date', type=str, default=None,
                         help='Target date (YYYY-MM-DD) for filtering')
+    parser.add_argument('--existing-index', type=str, default=None,
+                        help='Optional existing note index JSON for deterministic deduplication')
     parser.add_argument('--categories', type=str,
                         default=None,
                         help='Comma-separated list of arXiv categories (optional; default derives from preference config)')
-    parser.add_argument('--existing-index', type=str, default=None,
-                        help='Path to existing_notes_index.json for duplicate filtering')
+    parser.add_argument('--output-format', type=str, default='start-my-day',
+                        choices=['start-my-day', 'paper-search'],
+                        help='Output schema for downstream workflow')
     parser.add_argument('--selected-output', type=str, default=None,
-                        help='Optional path to write the top selected papers manifest')
-    parser.add_argument('--vault-root', type=str, default=os.environ.get('OBSIDIAN_VAULT_PATH'),
-                        help='Vault root for resolving canonical paper directories in selected manifest')
+                        help='Optional path to also write a fixed top-5 selection JSON')
+    parser.add_argument('--skip-hot-papers', action='store_true',
+                        help='Skip searching hot papers from Semantic Scholar')
 
     args = parser.parse_args()
 
@@ -1330,11 +1510,15 @@ def main():
         logger.error("No arXiv categories resolved. Please set research_domains.*.arxiv_categories in preference.md or pass --categories.")
         return 1
 
+    try:
+        existing_corpus = load_existing_corpus(args.existing_index)
+    except Exception as e:
+        logger.error("Failed to load existing index: %s", e)
+        return 1
+
     all_scored_papers = []
     recent_papers = []
     hot_papers = []
-    existing_index = load_existing_index(args.existing_index)
-    duplicate_metadata = existing_index.get('duplicate_metadata', {}) or {}
     hot_search_status = {
         'enabled': not args.skip_hot_papers,
         'source': 'none',
@@ -1398,72 +1582,68 @@ def main():
     logger.info("=" * 70)
     logger.info("Step 3: Merging and ranking results")
     logger.info("=" * 70)
-
+    
     # 按推荐评分排序
     all_scored_papers.sort(key=lambda x: x['scores']['recommendation'], reverse=True)
 
-    # 先做候选内部去重（优先 arXiv ID，其次标题 normalize）
-    seen_ids = set()
-    seen_titles = set()
-    unique_papers = []
-    for p in all_scored_papers:
-        arxiv_id = p.get('arxiv_id') or p.get('arxivId')
-        if arxiv_id:
-            if arxiv_id not in seen_ids:
-                seen_ids.add(arxiv_id)
-                unique_papers.append(p)
-            continue
-
-        title_normalized = normalize_title_alias(p.get('title', ''))
-        if title_normalized and title_normalized not in seen_titles:
-            seen_titles.add(title_normalized)
-            unique_papers.append(p)
-
+    unique_papers, internal_duplicates_removed = deduplicate_candidate_pool(all_scored_papers)
     logger.info("Total unique papers after internal deduplication: %d", len(unique_papers))
 
-    if len(unique_papers) == 0:
+    candidate_papers, excluded_duplicates = split_existing_duplicates(unique_papers, existing_corpus)
+    logger.info("Candidates after existing-note deduplication: %d", len(candidate_papers))
+
+    if len(candidate_papers) == 0:
         logger.warning("No papers matched the criteria!")
         return 1
 
-    candidates = []
-    excluded_duplicates = []
-    pre_filtered_duplicates = 0
+    # 取前 N 篇
+    top_papers = candidate_papers[:args.top_n]
 
-    for paper in unique_papers:
-        paper['note_filename'] = title_to_note_filename(paper.get('title', ''))
+    # 为每篇论文补充 note_filename，与 generate_note.py 的文件名规则保持一致
+    # 这样 start-my-day 生成的 wikilink 可以直接使用此字段，无需自行推断
+    for paper in candidate_papers:
+        paper['paper_id'] = f"arxiv:{paper['arxiv_id']}" if paper.get('arxiv_id') else None
         paper['title_normalized'] = normalize_title_alias(paper.get('title', ''))
-        paper['paper_id'] = f"arxiv:{paper.get('arxiv_id') or paper.get('arxivId') or paper.get('title_normalized', '')}"
-        paper['duplicate_status'] = match_existing_paper(paper, duplicate_metadata)
+        paper['note_filename'] = title_to_note_filename(paper.get('title', ''))
 
-        if paper['duplicate_status']['is_duplicate']:
-            pre_filtered_duplicates += 1
-            excluded_duplicates.append(paper)
-            continue
+    search_modes = ['recent_arxiv']
+    if not args.skip_hot_papers:
+        if hot_search_status.get('source') == 'semantic_scholar':
+            search_modes.append('hot_semantic_scholar')
+        elif hot_search_status.get('source') == 'openalex':
+            search_modes.append('hot_openalex')
 
-        candidates.append(paper)
-        if len(candidates) >= args.top_n:
-            break
-
-    if len(candidates) == 0:
-        logger.warning("No non-duplicate candidate papers remained after filtering!")
-        return 1
-
-    selected_papers = [
-        build_selected_paper_record(paper, vault_root=args.vault_root)
-        for paper in candidates[:5]
-    ]
-
-    output = {
-        'query_context': {
+    if args.output_format == 'paper-search':
+        output = {
+            'query_context': {
+                'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
+                'config_path': args.config,
+                'categories': categories,
+                'max_results': args.max_results,
+                'candidate_pool_size': args.top_n,
+                'search_modes': search_modes,
+            },
+            'existing_corpus': {
+                'notes_scanned': existing_corpus['notes_scanned'],
+                'seen_arxiv_ids': sorted(existing_corpus['seen_arxiv_ids']),
+                'seen_title_aliases': sorted(existing_corpus['seen_title_aliases']),
+                'index_path': existing_corpus['index_path'],
+            },
+            'filter_summary': {
+                'retrieved_recent': len(recent_papers),
+                'retrieved_hot': len(hot_papers),
+                'scored_total': len(all_scored_papers),
+                'pre_filtered_duplicates': len(excluded_duplicates),
+                'post_filtered_duplicates': internal_duplicates_removed,
+                'remaining_candidates': len(top_papers),
+            },
+            'hot_search_status': hot_search_status,
+            'candidates': top_papers,
+            'excluded_duplicates': excluded_duplicates,
+        }
+    else:
+        output = {
             'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
-            'config_path': args.config,
-            'categories': categories,
-            'max_results': args.max_results,
-            'candidate_pool_size': args.top_n,
-            'search_modes': [
-                'recent_arxiv',
-                'hot_semantic_scholar' if not args.skip_hot_papers else 'recent_arxiv_only',
-            ],
             'date_windows': {
                 'recent_30d': {
                     'start': window_30d_start.strftime('%Y-%m-%d'),
@@ -1474,44 +1654,34 @@ def main():
                     'end': window_1y_end.strftime('%Y-%m-%d')
                 }
             },
-        },
-        'existing_corpus': {
-            'notes_scanned': duplicate_metadata.get('notes_scanned', 0),
-            'seen_arxiv_ids': sorted((duplicate_metadata.get('seen_arxiv_ids', {}) or {}).keys()),
-            'seen_title_aliases': sorted((duplicate_metadata.get('seen_title_aliases', {}) or {}).keys()),
-            'index_path': args.existing_index,
-        },
-        'filter_summary': {
-            'retrieved_recent': len(recent_papers),
-            'retrieved_hot': len(hot_papers),
-            'scored_total': len(all_scored_papers),
-            'pre_filtered_duplicates': pre_filtered_duplicates,
-            'post_filtered_duplicates': 0,
-            'remaining_candidates': len(candidates),
-            'total_unique_before_existing_filter': len(unique_papers),
-        },
-        'hot_search_status': hot_search_status,
-        'candidates': candidates,
-        'selected_papers': selected_papers,
-        'excluded_duplicates': excluded_duplicates,
-    }
-
-    write_json_file(args.output, output)
-    if args.selected_output:
-        selected_manifest = {
-            'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
-            'source_candidates_path': args.output,
-            'selection_count': len(selected_papers),
-            'papers': selected_papers,
+            'hot_search_status': hot_search_status,
+            'total_recent': len(recent_papers),
+            'total_hot': len(hot_papers),
+            'total_unique': len(candidate_papers),
+            'excluded_duplicates': excluded_duplicates,
+            'top_papers': top_papers
         }
-        write_json_file(args.selected_output, selected_manifest)
+
+    # 保存结果
+    with open(args.output, 'w', encoding='utf-8') as f:
+        json.dump(output, f, ensure_ascii=False, indent=2, default=str)
+
+    if args.selected_output:
+        selected_output = {
+            'target_date': args.target_date or target_date.strftime('%Y-%m-%d'),
+            'selected_papers': candidate_papers[:5],
+        }
+        with open(args.selected_output, 'w', encoding='utf-8') as f:
+            json.dump(selected_output, f, ensure_ascii=False, indent=2, default=str)
+        logger.info("Selected papers saved to: %s", args.selected_output)
 
     logger.info("Results saved to: %s", args.output)
-    logger.info("Candidate papers: %d", len(candidates))
-    for i, p in enumerate(candidates[:5], 1):
+    logger.info("Top %d papers:", len(top_papers))
+    for i, p in enumerate(top_papers, 1):
         hot_marker = " [HOT]" if p.get('is_hot_paper') else ""
         logger.info("  %d. %s... (Score: %s)%s", i, p.get('title', 'N/A')[:60], p['scores']['recommendation'], hot_marker)
 
+    # 同时输出到 stdout
     print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
 
     return 0

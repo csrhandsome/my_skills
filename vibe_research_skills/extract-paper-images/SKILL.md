@@ -1,69 +1,205 @@
 ---
-name: extract-images-and-text
-description: 为论文提取图片与文字资产，优先从 arXiv 源码包获取真正的论文图，并整理全文文本
+name: extract-paper-images
+description: 从论文中提取图片，优先从arXiv源码包获取真正的论文图
 allowed-tools: Read, Write, Bash
 ---
-You are the Paper Asset Preparer for OrbitOS.
+You are the Paper Image Extractor for OrbitOS.
 
 # 目标
-从已下载的论文 PDF / arXiv 源码中提取所有可用图片与文字资产，保存到`vibe_research/20_Research/Papers/[领域]/[论文标题]/`目录下，并输出 `prepared_paper_assets.json` 供 `start-my-day` 和 `paper-analyze` 使用。
+从论文中提取所有图片，保存到`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`目录，并返回图片路径列表，以便在笔记中引用。
 
-**关键改进**：
-- 不再把下载 PDF 作为本 skill 的主职责；PDF 由 `paper-search` 统一下载并写入 `paper_assets_manifest.json`
-- 优先从 arXiv 源码包提取真正的论文图片（架构图、实验结果图等）
-- 同时抽取全文文本、章节文本与 figure context，供后续图文联合审阅
+**关键改进**：优先从arXiv源码包提取真正的论文图片（架构图、实验结果图等），而非PDF中的logo等非核心图片。
 
 # 工作流程
 
-## 步骤1：读取资产清单
+## 步骤1：识别论文来源
 
-1. 输入应为 `paper_assets_manifest.json`
-2. 逐篇读取：
-   - `paper_id`
-   - `paper_dir`
-   - `pdf_path`
-   - `images_dir`
-   - `text_dir`
+1. **识别论文来源**
+   - 支持格式：arXiv ID（如2510.24701）、完整ID（arXiv:2510.24701）、本地PDF路径
 
-## 步骤2：提取图片（源码优先）
+2. **下载PDF（如果需要）**
+   - 如果是arXiv ID，使用curl下载PDF到临时目录
 
-使用 `scripts/extract_images_and_text.py`：
-- 优先下载 arXiv 源码包并查找 `pics/`、`figures/`、`fig/`、`images/`、`img/`
-- 若源码中有 figure PDF，则调用 MinerU 提取/检测图片
-- 若图片不足，再从已下载 PDF 中使用 MinerU 兜底提图
-- 为每张图片标注粗粒度角色：`method`、`results`、`qualitative`、`ablation`、`noise`、`unknown`
+## 步骤2：提取图片（三级优先级）
 
-## 步骤3：提取文字
+**环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行仓库内的 Python 脚本。`extract-paper-images` 自身仍通过 `scripts/extract_images.py` 编排下载、解压与索引生成，MinerU 统一直接使用 `mineru-open-api` CLI。
 
-- 从已下载的 PDF 中抽取全文文本
-- 生成：
-  - `text/full_text.md`
-  - `text/sections.json`
-  - `text/figure_context.json`
-- 若可用，优先使用 MinerU 的 markdown 输出；否则退回到 PDF 文本提取
-
-## 步骤4：输出统一资产
-
-脚本输出：
-- `images/`
-- `images/index.md`
-- `text/full_text.md`
-- `text/sections.json`
-- `text/figure_context.json`
-- `prepared_paper_assets.json`
-
-# 调用方式
+**MinerU CLI 安装**：
 
 ```bash
-uv run python "scripts/extract_images_and_text.py" \
-  --manifest "paper_assets_manifest.json" \
-  --output "prepared_paper_assets.json"
+curl -fsSL https://cdn-mineru.openxlab.org.cn/open-api-cli/install.sh | sh
+mineru-open-api version
 ```
+
+**MinerU CLI 选择规则**：
+- 如果只需要纯 Markdown 文本，不需要图片、表格、公式或其他资源，优先使用 `mineru-open-api flash-extract`
+- 如果需要图片或完整资源，必须使用 `mineru-open-api extract`
+- `extract` 需要先到 `https://mineru.net` 申请 token，然后执行 `mineru-open-api auth`
+- 普通 `extract` 往往需要等待较长时间，任务运行期间不要手动 kill 掉命令
+
+### 优先级1：从arXiv源码包提取（最高优先级）
+
+脚本会自动尝试以下步骤：
+
+1. **下载arXiv源码包**
+   - URL：`https://arxiv.org/e-print/[PAPER_ID]`
+   - 解压到临时目录
+
+2. **查找源码中的图片目录**
+   - 检查目录：`pics/`、`figures/`、`fig/`、`images/`、`img/`
+   - 如果找到，复制所有图片文件到输出目录
+
+3. **提取源码中的PDF图片**
+   - 查找源码包中的PDF文件（如`dr_pipelinev2.pdf`）
+   - 将PDF页面转换为PNG图片
+
+4. **生成图片索引**
+   - 按来源分组（arxiv-source、pdf-figure、pdf-extraction）
+
+### 优先级2：从PDF直接提取（备选方案）
+
+如果源码包不可用或未找到足够图片，回退到从PDF中提取：
+
+```bash
+# 若系统安装了 uv，请先在 "$OBSIDIAN_VAULT_PATH" 下确保已执行 uv init
+uv run python "scripts/extract_images.py" \
+  "[PAPER_ID or PDF_PATH]" \
+  "$OBSIDIAN_VAULT_PATH/vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images" \
+  "$OBSIDIAN_VAULT_PATH/vibe_research/20_Research/Papers/[DOMAIN]/[PAPER_TITLE]/images/index.md"
+```
+
+**参数说明**：
+- 第1个参数：论文ID（arXiv ID）或本地PDF路径
+- 第2个参数：输出目录
+- 第3个参数：索引文件路径
+
+## 步骤3：返回图片路径
+
+返回相对于笔记文件的图片路径列表，格式化输出便于在笔记中引用。
+
+# 提取策略详解
+
+### 为什么优先从源码包提取？
+
+**PDF直接提取的问题**：
+1. **Logo等非核心图片**：PDF中的logo、图标、装饰元素被当成图片
+2. **矢量图无法识别**：论文中的架构图可能是LaTeX矢量图（TikZ/PGFplots），不是独立图片对象
+3. **多层PDF结构**：实验结果图可能是复杂渲染对象
+
+### 优先级3：MinerU 图像检测与裁剪（重要补充！）
+
+**当源码包中无图片文件且需要从 PDF 中恢复论文图时**：
+
+1. **检测图像候选**：优先检查 arXiv 源码中的图片目录与 figure PDF
+2. **如果源码中有 figure PDF**：用 `mineru-open-api extract` 提取/检测图像并输出为图片文件
+3. **如果只有编译后的论文 PDF**：
+   - 使用 `mineru-open-api extract` 解析 PDF，读取其 `images/` 目录与 Markdown 输出中的图片引用
+   - 优先保留 MinerU 识别出的 figure / table / visual 区域对应图片
+   - 不要回退为整页截图，优先使用局部检测出的图像资源
+4. **过滤小图标**：只保留有实际内容的图片，过滤明显的 logo、icon 和碎片化小图
+
+**MinerU 的优势**：
+1. **统一 PDF 图像处理链路**：同一套工具可处理论文 PDF 与源码中的 figure PDF
+2. **更现代的结构化输出**：除图片外还能产出 Markdown 与 `images/` 目录，便于后续按引用顺序归类与追踪来源
+3. **便于后续扩展**：如果后续要接 markdown / layout / content-list 输出，和当前能力链更一致
+
+# 输出格式
+
+## 图片索引文件（index.md）
+
+```markdown
+# 图片索引
+
+总计：X 张图片
+
+## 来源: arxiv-source
+- 文件名：final_results_combined.pdf
+- 路径：images/final_results_combined_page1.png
+- 大小：1500.5 KB
+- 格式：png
+
+## 来源: pdf-figure
+- 文件名：dr_pipelinev2_page1.png
+- 路径：images/dr_pipelinev2_page1.png
+- 大小：45.2 KB
+- 格式：png
+
+## 来源: pdf-extraction
+- 文件名：page1_fig15.png
+- 路径：images/page1_fig15.png
+- 大小：65.3 KB
+- 格式：png
+```
+
+## 返回的图片路径
+
+```
+Image paths:
+images/final_results_combined_page1.png (arxiv-source)
+images/dr_pipelinev2_page1.png (pdf-figure)
+images/rl_framework_page1.png (pdf-figure)
+images/question_synthesis_pipeline_page1.png (pdf-figure)
+```
+
+# 使用说明
+
+## 调用方式
+
+```bash
+/extract-paper-images 2510.24701
+```
+
+## 返回内容
+
+- 论文标题
+- 图片目录：`vibe_research/20_Research/Papers/领域/论文标题/images/`
+- 图片索引：`vibe_research/20_Research/Papers/领域/论文标题/images/index.md`
+- 核心图片：`images/final_results_combined_page1.png`等（前3-5张）
+- 图片来源标识（arxiv-source、pdf-figure、pdf-extraction）
+- 若走 MinerU 解析，还会基于 Markdown 输出中的图片引用顺序对结果做归类
 
 # 重要规则
 
-- **下载职责属于 paper-search**：这里默认 PDF 已存在于 `paper_assets_manifest.json` 指定路径
-- **优先源码图片**：源码包中的图片优先于 PDF 提取
-- **同时输出图与文**：不能只提图，不提文本
-- **为后续模型审阅服务**：输出必须能支持 `start-my-day` 先看图片及其对应文字，再决定是否配图
-- **PDF 解析统一走 MinerU / 文本提取回退链**：保留当前源码优先 + MinerU 的优势
+- **保存到正确目录**：`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`
+- **生成索引文件**：记录所有图片信息和来源
+- **图片质量**：确保清晰度足够高
+- **优先源码图片**：arXiv源码包中的图片优先于 PDF 提取
+- **来源标识**：在索引中标注图片来源，便于区分
+- **PDF 解析统一走 MinerU**：不要再使用旧的 PDF 提取实现
+- **文本优先走 `flash-extract`**：如果任务只需要 Markdown 文本，不要为了文本去跑完整 `extract`
+- **图片提取必须先鉴权**：涉及图片、表格、公式等完整资源时，先引导用户申请 token 并执行 `mineru-open-api auth`
+- **完整解析不要中断**：`mineru-open-api extract` 可能等待较久，除非明确报错，不要手动 kill 掉任务
+
+# 问题排查
+
+**如果提取的都是logo/图标**：
+1. 检查是否有arXiv源码包可用
+2. 查看`pics/`或`figures/`目录
+3. 查看索引文件中的"来源"字段
+
+**如果arXiv源码包下载失败**：
+1. 检查网络连接
+2. 检查arXiv ID格式（YYYYMM.NNNNN）
+3. 脚本会自动回退到PDF提取模式
+
+# 依赖项
+
+- Python 3.x
+- MinerU Open API CLI：
+  ```bash
+  curl -fsSL https://cdn-mineru.openxlab.org.cn/open-api-cli/install.sh | sh
+  mineru-open-api version
+  ```
+- requests库（用于下载arXiv源码包；若系统安装了 `uv`，同样在该环境中用 `uv add requests` 安装）
+- 网络连接（访问arXiv）
+
+# 版本历史
+
+## v2.0 (2025-02-28)
+- **新增**：优先从arXiv源码包提取图片
+- **新增**：三级优先级提取策略（源码包 > PDF图 > PDF提取）
+- **新增**：图片来源标识（arxiv-source、pdf-figure、pdf-extraction）
+- **新增**：基于 MinerU 的 PDF/figure 提取链路
+
+## v1.0
+- 初始版本：仅从PDF直接提取图片

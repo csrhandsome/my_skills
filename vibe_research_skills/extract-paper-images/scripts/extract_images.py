@@ -4,14 +4,14 @@
 论文图片提取脚本 - 支持从 arXiv 源码包优先提取。
 优先级：
 1. arXiv 源码包中的 pics/ 或 figures/ 目录（真正的论文图片）
-2. 源码包中的 figure PDF，使用 MinerU 提取/检测图片
-3. 论文 PDF，使用 MinerU 提取/检测图片（最后备选）
+2. 源码包中的 figure PDF，使用 MinerU Open API CLI 完整解析提取图片
+3. 论文 PDF，使用 MinerU Open API CLI 完整解析提取图片（最后备选）
 """
 
-import json
 import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -29,10 +29,10 @@ except ImportError:
     HAS_REQUESTS = False
     logger.warning("requests not found, using urllib")
 
-MINERU_CLI = os.environ.get('MINERU_CLI', 'mineru')
-MINERU_BACKEND = os.environ.get('MINERU_BACKEND', 'pipeline')
-MINERU_METHOD = os.environ.get('MINERU_METHOD', 'auto')
+MINERU_CLI = os.environ.get('MINERU_CLI', 'mineru-open-api')
 MINERU_LANG = os.environ.get('MINERU_LANG', 'en')
+MINERU_TIMEOUT = os.environ.get('MINERU_TIMEOUT', '1800')
+MINERU_TOKEN = os.environ.get('MINERU_TOKEN', '').strip()
 ALLOWED_IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp'}
 
 
@@ -157,7 +157,8 @@ def ensure_mineru_available():
     if shutil.which(MINERU_CLI):
         return True
     logger.error("未找到 MinerU CLI: %s", MINERU_CLI)
-    logger.error("请先安装 mineru，并确保 `mineru` 命令在当前环境中可用。")
+    logger.error("请先安装 `mineru-open-api`，并确保该命令在当前环境中可用。")
+    logger.error("macOS/Linux 可直接执行: curl -fsSL https://cdn-mineru.openxlab.org.cn/open-api-cli/install.sh | sh")
     return False
 
 
@@ -172,75 +173,69 @@ def run_mineru(pdf_path, work_dir):
 
     command = [
         MINERU_CLI,
-        '-p',
+        'extract',
         str(pdf_path),
         '-o',
         str(output_root),
-        '-b',
-        MINERU_BACKEND,
-        '-m',
-        MINERU_METHOD,
-        '-l',
+        '--language',
         MINERU_LANG,
+        '--timeout',
+        str(MINERU_TIMEOUT),
     ]
+    if MINERU_TOKEN:
+        command.extend(['--token', MINERU_TOKEN])
 
-    print(f"运行 MinerU: {' '.join(command)}")
+    print("运行 MinerU 完整解析（需要 token，可能需要等待较长时间，请勿中断任务）...")
+    print(f"执行命令: {shlex.join(command)}")
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
-        logger.error("MinerU 执行失败: %s", result.stderr.strip() or result.stdout.strip())
+        error_output = result.stderr.strip() or result.stdout.strip()
+        logger.error("MinerU 执行失败: %s", error_output)
+        logger.error("如需提取图片，请先到 https://mineru.net 申请 token，并执行 `mineru-open-api auth` 完成配置。")
+        logger.error("如果只需要 Markdown 文本且不需要图片，请改用 `mineru-open-api flash-extract`。")
         return None
 
-    parse_dir = output_root / pdf_path.stem / MINERU_METHOD
-    if not parse_dir.exists() and MINERU_BACKEND.startswith('hybrid'):
-        parse_dir = output_root / pdf_path.stem / f'hybrid_{MINERU_METHOD}'
-    if not parse_dir.exists() and MINERU_BACKEND.startswith('vlm'):
-        parse_dir = output_root / pdf_path.stem / 'vlm'
-
-    if not parse_dir.exists():
-        logger.error("MinerU 输出目录不存在: %s", parse_dir)
+    if not output_root.exists():
+        logger.error("MinerU 输出目录不存在: %s", output_root)
         return None
 
-    return parse_dir
+    return output_root
 
 
-def collect_page_image_refs(middle_json_path):
-    """从 MinerU middle.json 中提取按页分组的 image_path。"""
+def find_markdown_output(parse_dir, pdf_stem):
+    candidate = Path(parse_dir) / f'{pdf_stem}.md'
+    if candidate.exists():
+        return candidate
+
+    markdown_files = sorted(Path(parse_dir).glob('*.md'))
+    if markdown_files:
+        return markdown_files[0]
+
+    logger.warning("MinerU 未生成 markdown 文件: %s", parse_dir)
+    return None
+
+
+def collect_markdown_image_refs(markdown_path):
+    """从 MinerU Markdown 输出中提取图片引用顺序。"""
+    if markdown_path is None or not markdown_path.exists():
+        return []
+
     try:
-        with open(middle_json_path, 'r', encoding='utf-8') as f:
-            payload = json.load(f)
+        content = markdown_path.read_text(encoding='utf-8')
     except Exception as e:
-        logger.warning("读取 middle.json 失败: %s", e)
-        return {}
+        logger.warning("读取 Markdown 失败: %s", e)
+        return []
 
-    pdf_info = payload.get('pdf_info')
-    if not isinstance(pdf_info, list):
-        return {}
-
-    refs_by_page = {}
-
-    def walk(node, collector):
-        if isinstance(node, dict):
-            image_path = node.get('image_path')
-            if isinstance(image_path, str) and image_path:
-                collector.append(image_path)
-            for value in node.values():
-                walk(value, collector)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item, collector)
-
-    for page_index, page_data in enumerate(pdf_info, start=1):
-        collector = []
-        walk(page_data, collector)
-        ordered = []
-        seen = set()
-        for path in collector:
-            if path not in seen:
-                seen.add(path)
-                ordered.append(path)
-        refs_by_page[page_index] = ordered
-
-    return refs_by_page
+    ordered = []
+    seen = set()
+    pattern = re.compile(r'!\[[^\]]*\]\((images/[^)]+)\)')
+    for match in pattern.finditer(content):
+        image_ref = match.group(1)
+        if image_ref in seen:
+            continue
+        seen.add(image_ref)
+        ordered.append(image_ref)
+    return ordered
 
 
 def build_image_index_from_dir(images_dir):
@@ -251,8 +246,8 @@ def build_image_index_from_dir(images_dir):
     return image_files
 
 
-def normalize_mineru_outputs(parse_dir, output_dir, prefix_mode='page'):
-    """将 MinerU 输出归一化为当前脚本使用的命名和结构。"""
+def normalize_mineru_outputs(parse_dir, output_dir, pdf_stem, prefix_mode='page'):
+    """将 MinerU Open API CLI 输出归一化为当前脚本使用的命名和结构。"""
     images_dir = Path(parse_dir) / 'images'
     if not images_dir.exists():
         logger.warning("MinerU 未生成 images 目录: %s", images_dir)
@@ -260,43 +255,41 @@ def normalize_mineru_outputs(parse_dir, output_dir, prefix_mode='page'):
 
     output_dir = Path(output_dir)
     image_files = build_image_index_from_dir(images_dir)
-    refs_by_page = collect_page_image_refs(Path(parse_dir) / f'{Path(parse_dir).parent.name}_middle.json')
+    markdown_path = find_markdown_output(parse_dir, pdf_stem)
+    ordered_refs = collect_markdown_image_refs(markdown_path)
 
     normalized = []
     used = set()
 
-    if prefix_mode == 'page':
-        for page_num in sorted(refs_by_page):
-            page_refs = refs_by_page[page_num]
-            fig_idx = 1
-            for rel_path in page_refs:
-                src = images_dir / Path(rel_path).name
-                if not src.exists() or src in used:
-                    continue
-                used.add(src)
-                ext = src.suffix.lower().lstrip('.') or 'png'
-                dest_name = f'page{page_num}_fig{fig_idx}.{ext}'
-                dest_path = output_dir / dest_name
-                shutil.copy2(src, dest_path)
-                normalized.append({
-                    'page': page_num,
-                    'index': fig_idx,
-                    'filename': dest_name,
-                    'path': f'images/{dest_name}',
-                    'size': dest_path.stat().st_size,
-                    'ext': ext,
-                })
-                fig_idx += 1
+    for idx, rel_path in enumerate(ordered_refs, start=1):
+        src = images_dir / Path(rel_path).name
+        if not src.exists() or src in used:
+            continue
+        used.add(src)
+        ext = src.suffix.lower().lstrip('.') or 'png'
+        if prefix_mode == 'page':
+            dest_name = f'page0_fig{idx}.{ext}'
+        else:
+            dest_name = f'{pdf_stem}_page{idx}.{ext}'
+        dest_path = output_dir / dest_name
+        shutil.copy2(src, dest_path)
+        normalized.append({
+            'index': idx,
+            'filename': dest_name,
+            'path': f'images/{dest_name}',
+            'size': dest_path.stat().st_size,
+            'ext': ext,
+        })
 
     remaining = [path for path in image_files if path not in used]
     if remaining:
-        base_name = Path(parse_dir).parent.name
-        for idx, src in enumerate(remaining, start=1):
+        start_idx = len(normalized) + 1
+        for idx, src in enumerate(remaining, start=start_idx):
             ext = src.suffix.lower().lstrip('.') or 'png'
             if prefix_mode == 'page':
                 dest_name = f'page0_fig{idx}.{ext}'
             else:
-                dest_name = f'{base_name}_page{idx}.{ext}'
+                dest_name = f'{pdf_stem}_page{idx}.{ext}'
             dest_path = output_dir / dest_name
             shutil.copy2(src, dest_path)
             normalized.append({
@@ -317,7 +310,7 @@ def extract_pdf_figures(pdf_path, output_dir, min_bytes=5000):
         parse_dir = run_mineru(pdf_path, mineru_dir)
         if parse_dir is None:
             return []
-        image_list = normalize_mineru_outputs(parse_dir, output_dir, prefix_mode='page')
+        image_list = normalize_mineru_outputs(parse_dir, output_dir, Path(pdf_path).stem, prefix_mode='page')
 
     filtered = []
     skipped = 0
@@ -341,7 +334,7 @@ def extract_from_pdf_figures(figures_pdf, output_dir):
         parse_dir = run_mineru(figures_pdf, mineru_dir)
         if parse_dir is None:
             return []
-        return normalize_mineru_outputs(parse_dir, output_dir, prefix_mode='figure')
+        return normalize_mineru_outputs(parse_dir, output_dir, Path(figures_pdf).stem, prefix_mode='figure')
 
 
 def main():

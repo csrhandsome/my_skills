@@ -61,16 +61,9 @@ Then use this language setting throughout the workflow:
 
 # 工作流程
 
-## 强约束
-
-- 必须严格按照本 `start-my-day` skill 中定义的完整流程执行，不能跳步骤、并行改写成其他自定义流程，或绕过其中依赖的子 skill / 脚本约定。
-- `preference.md` 只能有一个唯一来源：`$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`。
-- 允许根据与用户的对话，把用户新表达出来的潜在兴趣方向增补到这唯一一份 `preference.md` 中；但只能直接更新这一个文件，不能在其他目录创建、复制、派生或临时维护第二份 `preference.md`。
-- 如果该文件缺失，就在上述唯一路径创建最小可用文件并继续流程。
-
 ## 工作流程概述
 
-本 skill 使用 Python 脚本调用 arXiv API 搜索论文，解析 XML 结果并根据研究兴趣进行筛选和评分。
+本 skill 使用 Python 脚本通过 `arxiv` 库检索 arXiv，并结合 Semantic Scholar / OpenAlex 的热门补充分支进行筛选和评分。
 
 ## 步骤1：收集上下文（静默）
 
@@ -91,107 +84,139 @@ Then use this language setting throughout the workflow:
    - 构建关键词到笔记路径的映射表，用于后续自动链接
    - 优先使用 frontmatter 中的 title 字段，其次使用文件名
 
-## 步骤2：调用 paper-search 获取候选论文
+## 步骤2：搜索论文
 
 ### 2.1 搜索范围
 
-候选论文由 `paper-search` 统一负责检索：
+搜索所有相关分类的最近论文：
 
 1. **搜索范围**
-   - 最近 30 天的 arXiv 新论文
-   - 过去一年内的高热度论文（Semantic Scholar / OpenAlex）
-   - 查询范围来自唯一的 `preference.md` 中定义的 research domains / arXiv categories
+   - 使用 `scripts/search_arxiv.py` 搜索 arXiv
+   - 查询：所有研究相关的 arXiv 分类
+   - 按提交日期排序
+   - 限制结果：200篇
 
 2. **筛选策略**
-   - `paper-search` 先根据研究兴趣配置打分
-   - 再结合当前 vault 中已有论文索引做搜索前排重与搜索后排重
-   - 输出 20-25 篇左右的非重复候选池，供 `start-my-day` 二次策展
+   - 根据研究兴趣配置文件筛选论文
+   - 计算综合推荐评分
+   - 保留前10篇高评分论文
 
 ### 2.2 执行搜索和筛选
 
-不要再直接调用本目录下的 `scripts/search_arxiv.py`。
-必须先生成 `existing_notes_index.json`，再调用 `paper-search/scripts/search_arxiv.py`。
+使用 `scripts/search_arxiv.py` 脚本完成搜索、排重、筛选和评分。
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境。先执行 `uv init`，再检查项目下 `.toml`（优先看 `pyproject.toml`）里的 Python 版本约束；若不是 `>=3.12`，则修改为 `>=3.12`。完成上述检查后，后续所有 Python 命令都通过 `uv run python ...` 执行；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。若当前项目里已经存在旧环境，且 `.toml` 中的 Python 版本不是 `>=3.12`，或执行 `uv add mineru` 失败，不要停下来做额外确认或仅报告版本不匹配；应直接删除当前项目下的 `.venv/`、`uv.lock` 与 `pyproject.toml`，重新执行 `uv init`，把 `.toml` 里的 Python 版本约束改为 `>=3.12`，然后再重新安装所需依赖后继续后续流程。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。接入新版 arXiv 搜索时，至少执行一次 `uv add arxiv`；若当前环境还是空的，再补 `uv add pyyaml requests`。
 
 ```bash
-# 先扫描已有论文，得到现有索引
+# 使用 Python 脚本搜索、排重、筛选 arXiv 论文
+# 若使用 uv 环境，先在 "$OBSIDIAN_VAULT_PATH" 下执行 uv init（如需），然后用 uv run python 执行
+# 首先切换到 skill 目录，然后执行脚本
 cd "$SKILL_DIR"
-uv run python scripts/scan_existing_notes.py \
-  --vault "$OBSIDIAN_VAULT_PATH" \
-  --output existing_notes_index.json
-
-# 再调用 paper-search 的真实检索脚本，并同步输出 top 5 选择结果
-uv run python ../paper-search/scripts/search_arxiv.py \
+uv run python scripts/search_arxiv.py \
   --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
   --existing-index existing_notes_index.json \
-  --output paper_search_candidates.json \
-  --selected-output selected_papers.json \
-  --vault-root "$OBSIDIAN_VAULT_PATH" \
+  --output arxiv_filtered.json \
   --max-results 200 \
-  --top-n 25
+  --top-n 10
 
-# 对候选池执行链接补齐后处理
-uv run python ../paper-search/scripts/enrich_paper_links.py \
-  --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
-  --input paper_search_candidates.json \
-  --output paper_search_candidates_enriched.json
+# 默认会从 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+# 仅在你要临时覆盖时才加：
+#   --categories "cs.AI,cs.LG,..."
+# 若 preference.md 缺少 research_domains 或格式不合法，脚本会直接报错退出（不再静默回退默认领域）
 ```
 
 **脚本功能**：
-1. **搜索外部论文**
-   - 搜索最近论文与高热度论文
-2. **解析与打分**
-   - 提取标题、作者、摘要、发布日期、分类等元数据
-   - 计算综合推荐评分（相关性40%、新近性20%、热门度30%、质量10%）
-3. **确定性排重**
-   - 结合 `existing_notes_index.json` 排除已存在论文
-4. **输出候选池**
-   - 输出 `paper_search_candidates.json`
-   - 保留结构化字段供 `start-my-day` 做二次筛查
-5. **后处理补齐链接**
-   - 调用 `paper-search/scripts/enrich_paper_links.py`
-   - 生成 `paper_search_candidates_enriched.json`
-   - 为 `candidates` 补充 repo / project / code / demo 等结构化链接字段
+1. **搜索 arXiv**
+   - 通过 `arxiv` Python 库搜索指定分类与日期窗口的论文
+   - 获取最多 200 篇最新论文
 
-## 步骤3：读取候选结果并做二次筛查
+2. **搜索前排重**
+   - 读取 `existing_notes_index.json`（如果提供）
+   - 按 arXiv ID、标题 alias、note filename alias 做确定性排重
+
+3. **应用筛选和评分**
+   - 根据研究兴趣配置文件筛选论文
+   - 计算综合推荐评分（相关性40%、新近性20%、热门度30%、质量10%）
+   - 按评分排序，保留前10篇
+
+**输出**：
+- `arxiv_filtered.json` - 筛选后的论文列表（JSON 格式）
+- 每篇论文包含：
+  - 论文ID、标题、作者、摘要
+  - 发布日期、分类
+  - 相关性评分、新近性评分、热门度评分、质量评分
+  - 最终推荐评分、匹配的领域
+  - `duplicate_status`、`note_filename`
+
+## 步骤3：读取筛选结果
 
 ### 3.1 读取 JSON 结果
 
-从 `paper_search_candidates_enriched.json` 中读取 `paper-search` 返回并补齐链接后的候选池：
+从 `arxiv_filtered.json` 中读取筛选和评分后的论文列表：
 
 ```bash
-cat paper_search_candidates_enriched.json
+# 读取筛选结果
+cat arxiv_filtered.json
 ```
 
 **结果包含**：
-- `query_context`
-- `existing_corpus`
-- `filter_summary`
-- `candidates`
-- `excluded_duplicates`
-- `enrichment_summary`
+- `total_found`: 搜索到的总论文数
+- `total_filtered`: 筛选后的论文数
+- `top_papers`: 前10篇高评分论文，每篇包含：
+  - 论文ID、标题、作者、摘要
+  - 发布日期、分类
+  - 相关性评分、新近性评分、质量评分
+  - 最终推荐评分、匹配的领域、匹配的关键词
 
-其中 `candidates` 是已经过脚本级初筛、排重和链接补齐的候选论文池，不是最终每日推荐列表。
+### 3.2 评分说明
 
-### 3.2 二次筛查规则
+综合多个维度的评分：
 
-`start-my-day` 必须基于 `paper_search_candidates_enriched.json` 做一轮 LLM 二次策展：
-- 从候选池中最终精选固定 **5 篇**，并额外输出 `selected_papers.json`
-- 不能重新选回 `excluded_duplicates` 中的论文
-- 不能机械照搬分数前几名
-- 需要兼顾 topic diversity、今日值得读的价值、与已有笔记的非重复性
-- 优先利用 `automation_links` 与 `link_enrichment` 中的 repo / project / demo 信息辅助判断论文是否适合继续深挖
-- 最终写入 daily note 的，是这轮二次筛查后的 5 篇论文
+```yaml
+推荐评分 =
+  相关性评分: 40%
+  新近性评分: 20%
+  热门度评分: 30%
+  质量评分: 10%
+```
+
+**评分细则**：
+
+1. **相关性评分** (40%)
+   - 与研究兴趣的匹配程度
+   - 标题关键词匹配：每个+0.5分
+   - 摘要关键词匹配：每个+0.3分
+   - 类别匹配：+1.0分
+   - 最高分：~3.0
+
+2. **新近性评分** (20%)
+   - 最近30天内：+3分
+   - 30-90天内：+2分
+   - 90-180天内：+1分
+   - 180天以上：0分
+
+3. **热门度评分** (30%)
+   - （如果数据可用）引用数 > 100：+3分
+   - 引用数 50-100：+2分
+   - 引用数 < 50：+1分
+   - 无引用数据：0分
+   - 或者基于发布后的时间推断（最近7天内的热门新论文）：+2分
+
+4. **质量评分** (10%)
+   - 从摘要推断：显著创新：+3分
+   - 明确方法：+2分
+   - 一般性工作：+1分
+   - 或者读取已有笔记的质量评分
+
+**最终推荐评分** = 相关性(40%) + 新近性(20%) + 热门度(30%) + 质量(10%)
 
 ## 步骤4：生成今日推荐笔记
 
-### 4.1 读取二次筛查结果
+### 4.1 读取筛选结果
 
-从 `paper-search` 返回并补齐链接的候选池中，经过 LLM 二次筛查，最终选出固定 5 篇论文写入推荐笔记，并将这 5 篇保存到 `selected_papers.json`：
-- 每篇论文仍保留完整信息：ID、标题、作者、摘要、评分、匹配领域
-- 若存在 `automation_links.repo`、`automation_links.project`、`automation_links.demo`，应优先在推荐理由与后续代码学习待办中加以利用
-- 推荐顺序允许不完全等同于原始分数排序，但必须给出明确的编辑性选择理由
+从 `arxiv_filtered.json` 中读取筛选后的论文列表：
+- 包含前 10 篇高评分论文
+- 每篇论文包含完整信息：ID、标题、作者、摘要、评分、匹配领域
 
 ### 4.2 创建推荐笔记文件
 
@@ -266,7 +291,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 ```
 
 **说明**：
-- 基于最终入选的 3-5 篇论文的标题、摘要和评分进行总结
+- 基于筛选出的前10篇论文的标题、摘要和评分进行总结
 - 提取共同的研究主题和趋势
 - 给出合理的阅读顺序建议
 
@@ -373,7 +398,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 **重要格式规则**：
 - **Wikilink 必须使用 display alias**：`[[File_Name|Display Title]]`，不要使用 bare `[[File_Name]]`（下划线会直接显示，影响阅读）
 - **图片必须使用 Obsidian wikilink 嵌入语法**：`![[filename.png|600]]`，**禁止**使用 `![alt](path%20encoded)` 格式（URL 编码在 Obsidian 中不工作）
-- **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 arXiv API 未提供，从下载的源码包读取
+- **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 `arxiv` 检索结果未提供，从下载的源码包读取
 - **不要使用 `---` 作为"无数据"占位符**：使用 `--` 代替（三个短横线会被 Obsidian 解析为分隔线）
 
 #### 4.2.3 前三篇论文进行图片语义筛选和详细分析
@@ -418,7 +443,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
-![[existing_image_filename.png|600]]
+![[actual_returned_image_filename.ext|600]]
 
 **核心贡献/观点**：
 ...
@@ -442,7 +467,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
-![[paperID_fig1.png|600]]
+![[actual_returned_image_filename.ext|600]]
 
 **核心贡献/观点**：
 ...
@@ -458,7 +483,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 **图片格式规则（重要！）**：
 - **必须使用 Obsidian wikilink 嵌入语法**：`![[filename.png|600]]`
 - **禁止使用 markdown 图片语法**：~~`![alt](path%20with%20encoding)`~~ — URL 编码（`%20`, `%26`）在 Obsidian 中不工作
-- 图片文件名示例：`2603.24124_fig1.png`
+- 图片文件名必须直接取自 `extract-paper-images` 的实际返回结果；例如返回 `images/page0_fig1.jpg` 时，应嵌入 `![[page0_fig1.jpg|600]]`
 - Obsidian 会自动在 vault 中搜索匹配的文件名，无需写完整路径
 
 **详细报告说明**：
@@ -520,6 +545,10 @@ uv run python scripts/link_keywords.py \
   - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
   - 自动调用 `paper-analyze` 生成详细报告
   - 在"详细报告"字段显示 wikilink 关联
+- **MinerU 默认模式**：
+  - `start-my-day` 默认是快速推荐流程，不为普通条目启动完整 `extract`
+  - 如果只是临时读取 PDF 文本且不需要图片，优先使用 `mineru-open-api flash-extract`
+  - 只有前3篇需要图片或详细报告时，才调用 `extract-paper-images` / `paper-analyze` 进入完整 `extract`
 - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
 - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
 - **保持快速**：让用户快速了解当日推荐
@@ -563,10 +592,6 @@ uv run python scripts/link_keywords.py \
 
 当用户输入 "start my day" 时，按以下步骤执行：
 
-- 必须遵循本 skill 的既定流程执行，不得自行改写流程。
-- 全流程只允许使用这一份配置文件：`$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`。
-- 如果通过对话发现用户新增了可能感兴趣的研究方向，可以直接补充到这唯一一份 `preference.md`；但绝不能因此创建第二份配置文件。
-
 **日期参数支持**：
 - 无参数：生成当天的论文推荐笔记
 - 有参数（YYYY-MM-DD）：生成指定日期的论文推荐笔记
@@ -590,41 +615,30 @@ uv run python scripts/link_keywords.py \
    - 提取笔记标题和 tags
    - 构建关键词到笔记路径的映射表
 
-3. **调用 paper-search 获取候选论文**
+3. **搜索和筛选 arXiv 论文**
    ```bash
-   # 先扫描已有论文，得到可用于排重的索引
+   # 使用 Python 脚本搜索、解析和筛选 arXiv 论文
+   # 首先切换到 skill 目录，然后执行脚本
+   # 如果有目标日期参数（如 2026-02-21），传递给 --target-date
    cd "$SKILL_DIR"
-   uv run python scripts/scan_existing_notes.py \
-     --vault "$OBSIDIAN_VAULT_PATH" \
-     --output existing_notes_index.json
-
-   # 再调用 paper-search 的真实检索脚本，并输出 top 5 选择结果
-   uv run python ../paper-search/scripts/search_arxiv.py \
+   uv run python scripts/search_arxiv.py \
      --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
      --existing-index existing_notes_index.json \
-     --output paper_search_candidates.json \
-     --selected-output selected_papers.json \
-     --vault-root "$OBSIDIAN_VAULT_PATH" \
+     --output arxiv_filtered.json \
      --max-results 200 \
-     --top-n 25 \
+     --top-n 10 \
      --target-date "{目标日期}"  # 如果用户指定了日期，替换为实际日期
+
+   # 默认按 preference.md 的 research_domains.*.arxiv_categories 自动聚合分类
+   # 如需覆盖默认分类，再显式传 --categories "..."
    ```
 
-4. **读取候选结果并做二次筛查**
-   - 从 `paper_search_candidates_enriched.json` 中读取候选池
-   - 候选池已经经过脚本级打分、初步排重与链接补齐
-   - 再由 `start-my-day` 做 LLM 二次策展，最终固定精选 5 篇
-   - 将 5 篇论文写入 `selected_papers.json`
-   - 每篇候选论文包含：ID、标题、作者、摘要、评分、匹配领域、`note_filename`，以及 `automation_links` / `link_enrichment`
+4. **读取筛选结果**
+   - 从 `arxiv_filtered.json` 中读取筛选结果
+   - 获取前 10 篇高评分论文
+   - 每篇论文包含：ID、标题、作者、摘要、评分、匹配领域
 
-5. **先准备图文资产，再生成推荐笔记**
-   - 调用 `paper-search` 的下载/准备脚本，为 `selected_papers.json` 中的 5 篇论文下载 PDF，生成 `paper_assets_manifest.json`
-   - 调用 `extract-images-and-text`（由原 `extract-paper-images` 重构）读取 `paper_assets_manifest.json`
-   - 为每篇论文产出：`images/`、图片索引、`text/full_text.md`、`text/sections.json`、`text/figure_context.json`
-   - 汇总生成 `prepared_paper_assets.json`
-   - **必须先查看图片和对应文字再写推荐**：编排 daily note 前，必须基于 `prepared_paper_assets.json` 检查图片、图注、附近段落与章节文字，再决定每篇论文是否配图以及配哪张图
-
-6. **生成推荐笔记（包含关键词链接）**
+5. **生成推荐笔记（包含关键词链接）**
    - 创建 `vibe_research/10_Daily/YYYY-MM-DD${NOTE_SUFFIX}.md`（使用目标日期，`NOTE_SUFFIX` 依语言设置）
    - **按评分排序**：所有论文按推荐评分从高到低排列
    - **每篇论文追加代码学习待办**：
@@ -635,13 +649,12 @@ uv run python scripts/link_keywords.py \
      - 在“代码学习待办”后追加“读后心得 / 你的总结”区域
      - 若用户尚未填写，则放置一句轻松的占位文案，例如“等待记录心得，期待您的输出”
      - 若该区域已有用户手写内容，则重新生成时保留原内容
-   - **前5篇都要做图文审阅**：
+   - **前3篇特殊处理**：
      - 论文名称用 wikilink 格式：`[[论文名字]]`
-     - 写推荐前先基于 `prepared_paper_assets.json` 检查图片、图注、附近段落和章节文字
-     - 只有图文语义一致时才插入图片，优先方法/架构图，其次关键结果图
+     - 在"一句话总结"后插入经语义筛选的图片（方法/架构图优先，其次关键结果图）
      - 在"详细报告"字段显示 wikilink 关联
-   - **总结图片规则**：从这 5 篇论文里语义筛选 2-3 张图插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
-   - **其余未选中的图片不显示**：如无通过语义验证的图片，不显示图片占位
+   - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
+   - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
    - **关键词自动链接**（重要！）：
      - 在生成笔记后，扫描文本中的关键词
      - 使用 `existing_notes_index.json` 进行匹配
@@ -649,9 +662,9 @@ uv run python scripts/link_keywords.py \
      - 保留已有 wikilink 不被修改
      - 不替换代码块中的内容
 
-7. **对选中的 5 篇论文执行资产准备与分析**
+6. **对前三篇论文执行深度分析**
    ```bash
-   # 对 selected_papers.json 中的每篇论文执行以下操作
+   # 对每篇前三论文执行以下操作
 
    # 步骤1：检查论文是否已有笔记
    # 在 vibe_research/20_Research/Papers/ 目录中搜索
@@ -659,26 +672,26 @@ uv run python scripts/link_keywords.py \
    # - 按论文标题搜索（模糊匹配）
    # - 按论文标题关键词搜索（如 "Pragmatics", "Reporting Bias"）
 
-   # 步骤2：统一准备 PDF / 图片 / 文字资产
-   uv run python ../paper-search/scripts/prepare_paper_assets.py \
-     --selected selected_papers.json \
-     --output paper_assets_manifest.json \
-     --vault-root "$OBSIDIAN_VAULT_PATH"
+   # 步骤2：根据检查结果决定处理方式
+   if 已有笔记:
+       # 不生成新的详细报告
+       # 使用已有的笔记路径
+       # 只提取图片（如果没有图片的话）
+   else:
+       # 提取候选图片（后续做语义筛选）
+       /extract-paper-images [论文ID]
 
-   uv run python ../extract-paper-images/scripts/extract_images_and_text.py \
-     --manifest paper_assets_manifest.json \
-     --output prepared_paper_assets.json
-
-   # 步骤3：基于准备好的资产执行分析
-   /paper-analyze selected_papers.json
+       # 生成详细分析报告
+       /paper-analyze [论文ID]
    ```
    - **如果已有笔记**：
-     - 不重复生成新的详细报告
-     - 但仍需要检查 `prepared_paper_assets.json` 是否已补齐图片与文字资产
+     - 不重复生成详细报告
+     - 使用已有笔记路径作为 wikilink
+     - 检查是否需要提取图片（如果没有 images 目录或 images 目录为空）
      - 在推荐笔记的"详细报告"字段引用已有笔记
    - **如果没有笔记**：
-     - 先完成 PDF 下载、图片提取、文本提取和图文语义筛选
-     - 再调用 `paper-analyze` 基于准备好的资产生成详细分析报告
+     - 提取候选图片并执行语义筛选后保存到 vault
+     - 生成详细的论文分析报告
      - 在推荐笔记中添加图片和详细报告链接
 
 ## 临时文件清理
@@ -689,32 +702,26 @@ uv run python scripts/link_keywords.py \
 ## 依赖项
 
 - Python 3.x（用于运行搜索和筛选脚本）
+- arXiv Python 库（新版检索入口；安装：`uv add arxiv`）
 - PyYAML（用于读取研究兴趣配置文件）
-- 网络连接（访问 arXiv API）
+- requests（用于 Semantic Scholar / OpenAlex 请求；若缺失则执行 `uv add requests`）
+- 网络连接（访问 arXiv / Semantic Scholar / OpenAlex）
 - `vibe_research/20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
 - `extract-paper-images` skill（用于提取论文图片）
 - `paper-analyze` skill（用于生成详细报告）
 
 ## 脚本说明
 
-### paper-search/scripts/search_arxiv.py
+### search_arxiv.py
 
-位于 `../paper-search/scripts/search_arxiv.py`，功能包括：
+位于 `scripts/search_arxiv.py`，功能包括：
 
-1. **搜索外部论文**：获取最近论文与高热度论文
-2. **解析元数据**：提取论文信息（ID、标题、作者、摘要等）
-3. **筛选和打分**：根据研究兴趣配置计算综合推荐分
-4. **搜索前排重**：结合 `existing_notes_index.json` 排除已存在论文
-5. **输出 JSON**：保存候选结果到 `paper_search_candidates.json`
-
-### paper-search/scripts/enrich_paper_links.py
-
-位于 `../paper-search/scripts/enrich_paper_links.py`，功能包括：
-
-1. **读取候选池**：读取 `paper_search_candidates.json`
-2. **补齐外链**：按 arXiv 页面、DOI 页面、Semantic Scholar 等来源补 repo / project / code / demo 链接
-3. **输出增强 JSON**：保存结果到 `paper_search_candidates_enriched.json`
-4. **保留兼容性**：不破坏原有 `candidates` 结构，仅追加 `link_enrichment` 与 `automation_links`
+1. **搜索 arXiv**：通过 `arxiv` Python 库获取 recent papers
+2. **搜索热门补充**：按需从 Semantic Scholar / OpenAlex 取过去一年热门论文
+3. **读取已有索引**：如果传入 `--existing-index`，按 arXiv ID / 标题 alias 做确定性排重
+4. **筛选论文**：根据研究兴趣配置文件筛选
+5. **计算评分**：综合相关性、新近性、质量等维度
+6. **输出 JSON**：保存筛选后的结果到 `arxiv_filtered.json`
 
 ### scan_existing_notes.py
 
@@ -753,7 +760,9 @@ uv run python scripts/scan_existing_notes.py \
     "blip": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
     "bootstrapping": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
     "vision-language": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
-  }
+  },
+  "seen_arxiv_ids": ["2402.12345"],
+  "seen_title_aliases": ["blip bootstrapping language image pre training for unified vision language understanding and generation"]
 }
 ```
 
