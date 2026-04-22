@@ -63,6 +63,17 @@ You are the Paper Analyzer for OrbitOS.
 - 如果输入是本地 PDF，脚本会把该 PDF 一并复制到这个 daily 目录
 - `note_path` 仍然是 `20_Research/Papers/` 下的归档笔记；正式补写分析时，优先编辑 `daily_report_path`，需要归档一致时再同步回 `note_path`
 
+# Research 原始资料归档
+
+MinerU 提取的完整文本和所有图片必须在 `20_Research/Papers/` 目录下保留一份原始归档，确保论文原始内容不丢失：
+
+- 归档目录：`vibe_research/20_Research/Papers/[domain]/[paper_title]/mineru/`
+  - `mineru/[pdf_stem].md`：MinerU 提取的完整论文 Markdown 文本（包含内联图片引用 `![...](images/xxx.png)`）
+  - `mineru/images/`：MinerU 从 PDF 提取的所有原始图片文件
+- **必须保留**：完整文本和全部图片，不做筛选、不做裁剪
+- **目的**：即使后续分析笔记只引用部分图片，原始 MinerU 产物也要完整保留，方便回溯和二次利用
+- `scripts/run_paper_analyze.py` 执行过程中会自动将 MinerU 产物的 markdown 文件和 images 目录复制到归档目录
+
 # 工作流程
 
 ## 实现脚本
@@ -289,6 +300,9 @@ PAPER_TITLE="[论文标题，空格替换为下划线]"
 NOTE_PATH="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}.md"
 IMAGES_DIR="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images"
 INDEX_PATH="${IMAGES_DIR}/index.md"
+MINERU_ARCHIVE_DIR="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/mineru"
+MINERU_TEXT_PATH="${MINERU_ARCHIVE_DIR}/[pdf_stem].md"
+MINERU_IMAGES_DIR="${MINERU_ARCHIVE_DIR}/images"
 ```
 
 ### 4.2 使用Python生成笔记（正确处理Obsidian格式）
@@ -884,6 +898,7 @@ Canvas 创建步骤：
 - **更新知识图谱** - 维护论文间关系
 - **图文并茂** - 论文中的核心图都要用上（核心架构图、方法图、实验结果图等），但插图前必须先完成图片语义验证（图的作用与价值）
 - **MinerU 默认模式** - `paper-analyze` 默认走完整版 `extract`，因为需要图片和完整内容；`flash-extract` 只适合其他 skill 的临时纯文本预览
+- **MinerU 原始资料归档** - MinerU 提取的完整 Markdown 文本和所有图片必须在 `20_Research/Papers/[domain]/[title]/mineru/` 保留一份完整归档，不做筛选和裁剪
 - **优雅处理错误** - 如果一个源失败则继续
 - **管理token使用** - 全面但不超出token限制
 
@@ -1013,6 +1028,9 @@ python "scripts/run_paper_analyze.py" \
 - `daily_report_path`
 - `daily_images_dir`
 - `daily_pdf_path`（如果输入是本地 PDF）
+- `mineru_archive_dir`（MinerU 原始资料归档目录）
+- `mineru_text_path`（归档的完整 MinerU Markdown 文本）
+- `mineru_images_dir`（归档的 MinerU 原始图片目录）
 
 只有在这些产物都存在之后，才允许继续补写分析正文。默认把最终分析写进 `daily_report_path`。
 

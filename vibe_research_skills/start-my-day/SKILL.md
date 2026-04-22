@@ -549,6 +549,13 @@ uv run python scripts/link_keywords.py \
   - `start-my-day` 默认是快速推荐流程，不为普通条目启动完整 `extract`
   - 如果只是临时读取 PDF 文本且不需要图片，优先使用 `mineru-open-api flash-extract`
   - 只有前3篇需要图片或详细报告时，才调用 `extract-paper-images` / `paper-analyze` 进入完整 `extract`
+- **MinerU 原始资料归档**：
+  - 对于前3篇论文，MinerU 提取的完整 Markdown 文本和所有图片必须在 `20_Research/Papers/[domain]/[title]/mineru/` 保留一份完整归档
+  - 归档目录：`vibe_research/20_Research/Papers/[domain]/[paper_title]/mineru/`
+    - `mineru/[pdf_stem].md`：MinerU 提取的完整论文 Markdown 文本
+    - `mineru/images/`：MinerU 从 PDF 提取的所有原始图片文件
+  - 不做筛选、不做裁剪，保留原始产物方便回溯和二次利用
+  - `paper-analyze` 执行过程中会自动完成归档（见 paper-analyze skill 的 Research 原始资料归档章节）
 - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
 - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
 - **保持快速**：让用户快速了解当日推荐

@@ -219,6 +219,28 @@ def prepare_daily_workspace(vault_root, title, note_path, images_dir, pdf_path, 
     }
 
 
+def archive_mineru_output(note_root, extract_dir, markdown_path, pdf_stem):
+    """Archive MinerU's full markdown text and all source images under the Research papers directory."""
+    mineru_archive_dir = note_root / "mineru"
+    mineru_archive_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy full MinerU markdown text
+    mineru_text_dest = mineru_archive_dir / markdown_path.name
+    copy_file_to(markdown_path, mineru_text_dest)
+
+    # Copy all MinerU source images
+    mineru_src_images = extract_dir / "images"
+    mineru_dst_images = mineru_archive_dir / "images"
+    if mineru_src_images.exists():
+        sync_directory(mineru_src_images, mineru_dst_images)
+
+    return {
+        "mineru_archive_dir": mineru_archive_dir,
+        "mineru_text_path": mineru_text_dest,
+        "mineru_images_dir": mineru_dst_images if mineru_src_images.exists() else None,
+    }
+
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -393,6 +415,13 @@ def main():
         keep_local_pdf=local_pdf_input,
     )
 
+    mineru_archive = archive_mineru_output(
+        note_root=note_root,
+        extract_dir=extract_dir,
+        markdown_path=markdown_path,
+        pdf_stem=pdf_path.stem,
+    )
+
     manifest = {
         "paper_id": paper_id or pdf_path.stem,
         "pdf_path": str(pdf_path),
@@ -412,6 +441,9 @@ def main():
         "daily_report_path": str(daily_outputs["daily_report_path"]),
         "daily_images_dir": str(daily_outputs["daily_images_dir"]),
         "daily_pdf_path": str(daily_outputs["daily_pdf_path"]) if daily_outputs["daily_pdf_path"] else "",
+        "mineru_archive_dir": str(mineru_archive["mineru_archive_dir"]),
+        "mineru_text_path": str(mineru_archive["mineru_text_path"]),
+        "mineru_images_dir": str(mineru_archive["mineru_images_dir"]) if mineru_archive["mineru_images_dir"] else "",
     }
     manifest_path = run_root / "analysis_run.json"
     write_manifest(manifest_path, manifest)
@@ -429,6 +461,10 @@ def main():
     if daily_outputs["daily_pdf_path"]:
         print(f"daily_pdf_path: {daily_outputs['daily_pdf_path']}")
     print(f"daily_manifest_path: {daily_manifest_path}")
+    print(f"mineru_archive_dir: {mineru_archive['mineru_archive_dir']}")
+    print(f"mineru_text_path: {mineru_archive['mineru_text_path']}")
+    if mineru_archive["mineru_images_dir"]:
+        print(f"mineru_images_dir: {mineru_archive['mineru_images_dir']}")
     if not args.skip_graph:
         print(f"graph_path: {graph_path}")
 
