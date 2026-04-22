@@ -68,7 +68,7 @@ semantic_scholar_cache_path: "~/.cache/vibe_research_skills/semantic_scholar_cac
 
 ## 步骤2：扫描已有笔记构建索引
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。若你在同一套 skill 环境里复用 `start-my-day` 的共享搜索核心，建议至少先执行一次 `uv add arxiv`，并确保 `pyyaml`、`requests` 可用。
 
 复用 `start-my-day` 的扫描脚本：
 
@@ -256,7 +256,7 @@ cat conf_papers_filtered.json
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
-![论文图片|600](图片路径)
+![[actual_returned_image_filename.ext|600]]
 
 **核心贡献/观点**：
 ...
@@ -274,7 +274,7 @@ cat conf_papers_filtered.json
 
 **One-line Summary**: [one-line summary]
 
-![paper image|600](image_path)
+![[actual_returned_image_filename.ext|600]]
 
 **Core Contributions**:
 ...
@@ -345,6 +345,10 @@ uv run python scripts/link_keywords.py \
   - 论文名称用 wikilink 格式：`[[论文名字]]`
   - 有 arXiv ID：提取图片 + 深度分析
   - 无 arXiv ID：标注"无 arXiv 版本"，跳过图片和深度分析
+- **MinerU 默认模式**：
+  - `conf-papers` 默认是年度推荐流程，不为普通条目启动完整 `extract`
+  - 如果只是临时读取 PDF 文本且不需要图片，优先使用 `mineru-open-api flash-extract`
+  - 只有前 3 篇且确实需要图片或深度分析时，才调用 `extract-paper-images` / `paper-analyze` 进入完整 `extract`
 - **其他论文**：只写基本信息
 - **双年会议处理**：ICCV 偶数年、ECCV 奇数年无结果，正常跳过
 - **自动关键词链接**：复用 start-my-day 的 link_keywords.py
@@ -439,7 +443,7 @@ uv run python scripts/link_keywords.py \
        # 不生成新的详细报告
        # 使用已有的笔记路径
    elif 有 arXiv ID:
-       # 提取第一张图片
+       # 提取候选图片（后续做语义筛选）
        /extract-paper-images [论文ID]
        # 生成详细分析报告
        /paper-analyze [论文ID]
@@ -459,6 +463,6 @@ uv run python scripts/link_keywords.py \
 - Python 3.x
 - PyYAML
 - 网络连接（DBLP API + Semantic Scholar API）
-- `start-my-day` skill（复用 scan_existing_notes.py, link_keywords.py, search_arxiv.py 的评分函数）
+- `start-my-day` skill（复用 scan_existing_notes.py、link_keywords.py，以及更新后的 `search_arxiv.py` 共享评分/排重逻辑）
 - `extract-paper-images` skill（提取论文图片，仅限有 arXiv ID 的论文）
 - `paper-analyze` skill（生成详细报告，仅限有 arXiv ID 的论文）

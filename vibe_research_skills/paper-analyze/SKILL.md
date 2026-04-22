@@ -1,7 +1,7 @@
 ---
 name: paper-analyze
 description: 深度分析单篇论文，生成详细笔记和评估，图文并茂 / Deep analyze a single paper, generate detailed notes with images
-allowed-tools: Read, Write, Bash, WebFetch
+allowed-tools: Read, Write, Bash
 ---
 
 # Language Setting / 语言设置
@@ -37,6 +37,31 @@ You are the Paper Analyzer for OrbitOS.
 
 # 目标
 对特定论文进行深度分析，生成全面笔记，评估质量和价值，并更新知识库。
+
+# 强制执行要求
+
+在写任何正文分析之前，**必须先执行** `scripts/run_paper_analyze.py`。这是 `paper-analyze` 的唯一合法入口。
+
+- 必须真实执行脚本，不允许只阅读 PDF、源码、已有图片后手工跳过执行
+- 必须验证脚本产物存在：`analysis_run.json`、MinerU markdown、笔记文件、`images/index.md`
+- 如果脚本失败、缺少产物，必须立即报错并说明缺口
+- 不允许静默回退到“手工整理笔记”“直接读 main.tex”“只复用已有图片不执行 CLI / Python”
+
+# 信息源原则
+
+- 优先复用本地 PDF、已有笔记、`analysis_run.json`、MinerU markdown 和 `images/index.md`
+- 允许联网补充 arXiv 元数据、外部链接和 related work；不要因为本地 PDF 存在就默认禁用 web research
+- 只有在用户明确要求“只用本地资料”时，才切换到纯本地分析
+
+# Daily 工作目录
+
+`scripts/run_paper_analyze.py` 执行完成后，会额外创建一个 daily 工作目录，供最终分析报告落盘：
+
+- 目录格式：`vibe_research/10_Daily/YYYY-MM-DD_论文标题/`
+- `daily_report_path`：daily 目录下的最终分析报告工作副本
+- `daily_images_dir`：与最终报告同目录的图片目录
+- 如果输入是本地 PDF，脚本会把该 PDF 一并复制到这个 daily 目录
+- `note_path` 仍然是 `20_Research/Papers/` 下的归档笔记；正式补写分析时，优先编辑 `daily_report_path`，需要归档一致时再同步回 `note_path`
 
 # 工作流程
 
@@ -75,64 +100,68 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 2. **读取论文笔记**
    - 如果找到，返回完整内容
 
-## 步骤2：获取论文内容
+## 步骤2：统一获取论文内容与图片
 
-### 2.1 下载PDF并提取源码
+### 2.1 获取论文元数据
 
-```bash
-# 下载PDF
-curl -L "https://arxiv.org/pdf/[PAPER_ID]" -o /tmp/paper_analysis/[PAPER_ID].pdf
+1. **优先使用已有信息**
+   - 如果用户已经给了 arXiv ID、标题或本地 PDF，直接基于现有输入继续
+   - 如果库中已有对应笔记或 metadata，优先复用，不要重复拼装一套临时抓取流程
+   - 本地 PDF 存在时，先用本地产物建立分析骨架，但允许继续联网补 arXiv 元数据、外部链接和 related work
 
-# 下载源码包（包含TeX和图片）
-curl -L "https://arxiv.org/e-print/[PAPER_ID]" -o /tmp/paper_analysis/[PAPER_ID].tar.gz
-tar -xzf /tmp/paper_analysis/[PAPER_ID].tar.gz -C /tmp/paper_analysis/
-```
+2. **必要时补齐元数据**
+   - 可以读取 arXiv 页面、已有笔记 frontmatter 或本地 PDF 附近的辅助文件来补齐标题、作者、日期
+   - 不要在 `paper-analyze` 里维护一套“下载源码包 + 解压 + 手工读取 TeX 分章节”的旧流程
 
-### 2.2 提取论文元数据
+### 2.2 正文提取统一走 MinerU CLI
 
-```bash
-# 使用curl获取arXiv页面
-curl -s "https://arxiv.org/abs/[PAPER_ID]" > /tmp/paper_analysis/arxiv_page.html
+1. **确定输入 PDF**
+   - 如果工作区或 vault 中已有本地 PDF，直接使用本地 PDF
+   - 如果只有 arXiv ID，再先下载 PDF 到本地临时目录
 
-# 提取关键信息（使用通用正则，适用于任何论文）
-TITLE=$(grep -oP '<title>\K[^<]*' /tmp/paper_analysis/arxiv_page.html | head -1)
-AUTHORS=$(grep -oP 'citation_author" content="\K[^"]*' /tmp/paper_analysis/arxiv_page.html | paste -sd ', ')
-DATE=$(grep -oP 'citation_date" content="\K[^"]*' /tmp/paper_analysis/arxiv_page.html | head -1)
-```
+2. **唯一入口**
+   - 不要直接手工执行散落的命令
+   - 先运行 `scripts/run_paper_analyze.py`，由它统一调度 CLI、图片提取、笔记生成和图谱更新
 
-### 2.3 读取TeX源码内容
+3. **正式分析默认命令**
+   ```bash
+   mineru-open-api extract "[PDF_PATH]" -o /tmp/paper_analysis/mineru_extract --language en --timeout 1800
+   ```
+   - `paper-analyze` 默认使用完整版 `mineru-open-api extract`
+   - 这是正式深度分析的默认正文入口，不要改成手工读 TeX、手工拼章节或直接跳过 CLI
+   - `extract` 需要 token，且通常耗时较长，任务运行期间不要手动 kill
 
-```bash
-# 读取各章节内容
-cat /tmp/paper_analysis/1-introduction.tex > /tmp/paper_analysis/intro.txt
-cat /tmp/paper_analysis/2-joint-optimization.tex > /tmp/paper_analysis/methods.txt
-cat /tmp/paper_analysis/3-agent-swarm.tex > /tmp/paper_analysis/agent_swarm.txt
-cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
-```
+4. **仅临时纯文本预览时**
+   ```bash
+   mineru-open-api flash-extract "[PDF_PATH]" -o /tmp/paper_analysis/mineru_flash
+   ```
+   - `flash-extract` 只适合临时快速预览
+   - 不适合作为 `paper-analyze` 的主流程，因为它不提供完整资源
 
-## 步骤2.1 从arXiv获取
+### 2.3 图片提取统一委托给 extract-paper-images
 
-1. **获取论文元数据**
-   - 使用WebFetch访问arXiv API
-   - 查询参数：`id_list=[arXiv ID]`
-   - 提取：标题、作者、摘要、发布日期、类别、链接、PDF链接
+1. **固定入口**
+   - 图片提取、源码包检查、figure PDF 处理统一调用 `extract-paper-images`
+   - `paper-analyze` 不要自己维护“下载源码包 / 解压 figure / 手工复制图片”的旁路
 
-2. **获取PDF内容和图片**
-   - 使用WebFetch获取PDF
-   - **重要**：提取论文中的所有图片
-   - 保存图片到`vibe_research/20_Research/Papers/[领域]/[论文标题]/images/`
-   - 生成图片索引：`images/index.md`
+2. **调用方式**
+   ```bash
+   /extract-paper-images "[PAPER_ID or PDF_PATH]"
+   ```
 
-3. **图片语义验证（必须）**
+3. **消费方式**
+   - 读取 `extract-paper-images` 返回的图片路径和 `images/index.md`
+   - 后续插图时只使用实际返回的文件名，不要猜测文件名
+
+### 2.4 图片语义验证（必须）
+
+1. **先判断图片作用**
    - 在插图前，先判断每张候选图“展示的是什么、在论文里起什么作用”
    - 角色至少标注为：方法/架构图、关键结果图、定性示例/消融图、噪声图（logo/附录装饰）
+
+2. **再决定是否插入**
    - 只插入能支撑一句话总结或关键贡献的图片
-
-### 2.2 从Hugging Face获取（如果适用）
-
-1. **获取论文详情**
-   - 使用WebFetch访问Hugging Face
-   - 提取：标题、作者、摘要、标签、点赞、下载
+   - 如果 `extract-paper-images` 返回很多图，优先方法/架构图和关键结果图
 
 ## 步骤3：执行深度分析
 
@@ -205,7 +234,8 @@ cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
    - 有什么改进空间？
 
 4. **与相关工作对比**
-   - 搜索相关历史论文
+   - 优先搜索本地库中已有的相关论文笔记和 `PaperGraph`
+   - 如有必要，允许继续联网补充相关工作
    - 与相似论文相比如何？
    - 补充了什么空白？
    - 属于哪个研究路线
@@ -229,15 +259,16 @@ cat /tmp/paper_analysis/5-eval.tex > /tmp/paper_analysis/eval.txt
    - 多行或推导型公式统一使用块级 `$$...$$`
    - 保持符号与原论文一致，避免自行改写符号语义
 
-## 步骤3：复制图片并生成索引
+### 3.6 接收图片结果并生成引用
 
-```bash
-# 复制figures目录到目标位置
-cp /tmp/paper_analysis/*.{pdf,png,jpg,jpeg} "PAPERS_DIR/[DOMAIN]/[PAPER_TITLE]/images/" 2>/dev/null
+1. **不要手工复制临时目录里的图片**
+   - `extract-paper-images` 已经负责把图片写入目标 `images/` 目录
+   - 也会同时生成 `images/index.md`
 
-# 列出复制的内容
-ls "PAPERS_DIR/[DOMAIN]/[PAPER_TITLE]/images/"
-```
+2. **在 `paper-analyze` 中只做消费**
+   - 读取返回的图片路径
+   - 结合 `images/index.md` 做图片筛选、排序和引用
+   - 不要再写 `cp /tmp/...` 这类手工搬运步骤
 
 ## 步骤4：生成综合论文笔记
 
@@ -380,11 +411,11 @@ status: analyzed
 
 **方式1：插入论文中的图（优先）**
 ```
-![[pageX_figY.pdf|800]]
+![[actual_returned_image_filename.ext|800]]
 
 > 图1：[架构描述，包括图中各个部分的含义和它们之间的关系]
 ```
-**注意**：图片文件名必须与实际文件名匹配（从arXiv提取的图片通常是`.pdf`格式）
+**注意**：图片文件名必须与 `extract-paper-images` 的实际返回结果匹配，常见为 `.jpg`、`.png` 或 `.webp`
 
 **方式2：创建Canvas架构图（论文无图时使用）**
 调用 `json-canvas` skill 创建 `.canvas` 文件，然后嵌入：
@@ -443,11 +474,11 @@ Canvas 创建步骤：
 
 **方式1：插入论文中的图（优先）**
 ```
-![[pageX_figY.pdf|800]]
+![[actual_returned_image_filename.ext|800]]
 
 > 图1：[架构描述，包括图中各个部分的含义和它们之间的关系]
 ```
-**注意**：图片文件名必须与实际文件名匹配（从arXiv提取的图片通常是`.pdf`格式）
+**注意**：图片文件名必须与 `extract-paper-images` 的实际返回结果匹配，常见为 `.jpg`、`.png` 或 `.webp`
 
 **方式2：创建Canvas架构图（论文无图时使用）**
 ```
@@ -516,10 +547,10 @@ Canvas 创建步骤：
 ### 实验结果图
 [插入论文中的实验结果图]
 
-![[experiment_results.pdf|800]]
+![[actual_returned_image_filename.ext|800]]
 
 > 图2：[图描述]
-**注意**：图片文件名必须与实际文件名匹配（从arXiv提取的图片通常是`.pdf`格式）
+**注意**：图片文件名必须与 `extract-paper-images` 的实际返回结果匹配，常见为 `.jpg`、`.png` 或 `.webp`
 
 ## 深度分析
 
@@ -527,79 +558,7 @@ Canvas 创建步骤：
 
 #### 理论贡献
 - **贡献1**：[详细描述理论贡献]
-  - 创新点：[手动分步执行（用于调试）
-
-#### 步骤0：初始化环境
-```bash
-# 创建工作目录
-mkdir -p /tmp/paper_analysis
-cd /tmp/paper_analysis
-```
-
-#### 步骤1：识别论文
-```bash
-# 搜索已有笔记
-find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -type f
-```
-
-#### 步骤2：获取论文内容
-```bash
-# 下载PDF和源码（见步骤2.1、2.2、2.3）
-
-# 或者从已有数据读取
-cat /tmp/paper_analysis/{1-introduction,2-joint-optimization,3-agent-swarm,5-eval}.tex
-```
-
-#### 步骤3：复制图片
-```bash
-# 使用extract-paper-images skill
-/extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE"
-```
-
-#### 步骤4：生成笔记
-```bash
-# 使用外部脚本生成笔记；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE"
-```
-
-#### 步骤5：更新图谱
-```bash
-# 使用外部脚本更新知识图谱；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/update_graph.py" --paper-id "$PAPER_ID" --title "$TITLE" --domain "$DOMAIN" --score 8.8 --language "$LANGUAGE"
-```
-
-#### 步骤6：使用obsidian-markdown skill修复格式
-
-分析完成后，调用`/obsidian-markdown`来确保frontmatter格式正确，然后手动补充详细内容。
-
-### 完整工作流程示例
-
-**场景1：分析arXiv论文（有网络访问）**
-```bash
-# 直接调用仓库中实际存在的脚本
-uv run python "scripts/generate_note.py" \
-  --paper-id "2602.02276" \
-  --title "论文标题" \
-  --authors "待定作者" \
-  --domain "智能体" \
-  --language "$LANGUAGE"
-```
-
-**场景2：分析本地PDF（无网络访问）**
-```bash
-# 手动上传PDF
-cp /path/to/local.pdf /tmp/paper_analysis/[ID].pdf
-
-# 执行分析（跳过步骤2的下载，使用本地 PDF 作为输入来源）
-uv run python "scripts/generate_note.py" \
-  --paper-id "[ID]" \
-  --title "[TITLE]" \
-  --authors "[AUTHORS]" \
-  --domain "[DOMAIN]" \
-  --language "$LANGUAGE"
-```
-
-### 新理论/新方法/新视角]
+  - 创新点：[新理论/新方法/新视角]
   - 学术价值：[对学术界的价值]
   - 影响范围：[影响的研究领域]
 
@@ -867,7 +826,8 @@ uv run python "scripts/generate_note.py" \
 **论文**：[[论文标题]] (arXiv:XXXX.XXXXX)
 
 **分析状态**：✅ 已生成详细笔记
-**笔记位置**：[[vibe_research/20_Research/Papers/领域/YYYY-MM-DD-arXiv-ID.md]]
+**Daily 报告**：[[vibe_research/10_Daily/YYYY-MM-DD_论文标题/论文标题.md]]
+**归档笔记**：[[vibe_research/20_Research/Papers/领域/论文标题.md]]
 
 ---
 
@@ -923,6 +883,7 @@ uv run python "scripts/generate_note.py" \
 - **客观评分** - 使用一致的评分标准
 - **更新知识图谱** - 维护论文间关系
 - **图文并茂** - 论文中的核心图都要用上（核心架构图、方法图、实验结果图等），但插图前必须先完成图片语义验证（图的作用与价值）
+- **MinerU 默认模式** - `paper-analyze` 默认走完整版 `extract`，因为需要图片和完整内容；`flash-extract` 只适合其他 skill 的临时纯文本预览
 - **优雅处理错误** - 如果一个源失败则继续
 - **管理token使用** - 全面但不超出token限制
 
@@ -931,6 +892,7 @@ uv run python "scripts/generate_note.py" \
 1. **图片嵌入**：**必须使用** `![[filename.png|800]]`，**禁止使用** `![alt](path%20encoded)`
    - Obsidian 不支持 URL 编码路径（`%20`, `%26` 等不工作）
    - Obsidian 会自动在 vault 中搜索文件名，无需写完整路径
+   - 图片文件名必须直接取自 `extract-paper-images` 的实际返回结果，不要自己猜文件名
 2. **Wikilink 必须用 display alias**：`[[File_Name|Display Title]]`，禁止 bare `[[File_Name]]`
    - 下划线文件名直接显示会很丑
 3. **不要用 `---` 作为"无数据"占位符**：使用 `--` 代替（`---` 会被 Obsidian 解析为分隔线）
@@ -1010,7 +972,7 @@ uv run python "scripts/generate_note.py" \
 
 - **论文未找到**：检查ID格式，建议搜索
 - **arXiv掉线**：使用缓存或稍后重试，在输出中注明局限性
-- **PDF解析失败**：回退到摘要，注明局限性
+- **PDF解析失败**：停止当前流程，报告 `run_paper_analyze.py` 的失败步骤；不要静默回退到只看摘要
 - **相关论文未找到**：说明缺乏上下文
 - **图谱更新失败**：继续但不更新图谱
 
@@ -1020,100 +982,44 @@ uv run python "scripts/generate_note.py" \
 
 ### 快速执行（推荐）
 
-使用以下bash脚本一键执行完整流程：
+先执行强制入口脚本；没有这一步，就不允许继续写分析正文：
 
 ```bash
-#!/bin/bash
-
-# 变量设置
-PAPER_ID="$1"
-TITLE="${2:-待定标题}"
-AUTHORS="${3:-待定作者}"
-DOMAIN="${4:-其他}"
-
-# 执行完整流程；若使用 uv 环境，请优先用 uv run python
-uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE" || \
-    echo "笔记生成脚本执行失败"
-
-# 提取图片
-# 调用 extract-paper-images skill
-# /extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE" || \
-#     echo "图片提取失败"
+uv run python "scripts/run_paper_analyze.py" \
+  --paper-id "$PAPER_ID" \
+  --pdf-path "$PDF_PATH" \
+  --title "$TITLE" \
+  --authors "$AUTHORS" \
+  --domain "$DOMAIN"
 ```
 
-上面的 bash 代码块是内嵌示例脚本。仓库当前未提供 `run_full_analysis.sh` 或 `run_paper_analysis.py` 文件；如果需要一键执行，请将该示例保存为本地脚本后再运行。
+如果环境里没有 `uv`，再退回：
+
+```bash
+python "scripts/run_paper_analyze.py" \
+  --paper-id "$PAPER_ID" \
+  --pdf-path "$PDF_PATH" \
+  --title "$TITLE" \
+  --authors "$AUTHORS" \
+  --domain "$DOMAIN"
+```
+
+脚本成功后，必须检查它打印出的这些路径是否真实存在：
+- `analysis_run.json`
+- `markdown_path`
+- `note_path`
+- `index_path`
+- `daily_dir`
+- `daily_report_path`
+- `daily_images_dir`
+- `daily_pdf_path`（如果输入是本地 PDF）
+
+只有在这些产物都存在之后，才允许继续补写分析正文。默认把最终分析写进 `daily_report_path`。
 
 ### 手动分步执行（用于调试）
 
-#### 步骤0：初始化环境
-```bash
-# 创建工作目录
-mkdir -p /tmp/paper_analysis
-cd /tmp/paper_analysis
-```
-
-#### 步骤1：识别论文
-```bash
-# 搜索已有笔记
-find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -type f
-```
-
-#### 步骤2：获取论文内容
-```bash
-# 下载PDF和源码（见步骤2.1、2.2、2.3）
-
-# 或者从已有数据读取
-cat /tmp/paper_analysis/{1-introduction,2-joint-optimization,3-agent-swarm,5-eval}.tex
-```
-
-#### 步骤3：复制图片
-```bash
-# 使用extract-paper-images skill
-/extract-paper-images "$PAPER_ID" "$DOMAIN" "$TITLE"
-```
-
-#### 步骤4：生成笔记
-```bash
-# 使用外部脚本生成笔记；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE"
-```
-
-#### 步骤5：更新图谱
-```bash
-# 使用外部脚本更新知识图谱；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/update_graph.py" --paper-id "$PAPER_ID" --title "$TITLE" --domain "$DOMAIN" --score 8.8 --language "$LANGUAGE"
-```
-
-#### 步骤6：使用obsidian-markdown skill修复格式
-
-分析完成后，调用`/obsidian-markdown`来确保frontmatter格式正确，然后手动补充详细内容。
-
-### 完整工作流程示例
-
-**场景1：分析arXiv论文（有网络访问）**
-```bash
-# 直接调用仓库中实际存在的脚本
-uv run python "scripts/generate_note.py" \
-  --paper-id "2602.02276" \
-  --title "论文标题" \
-  --authors "待定作者" \
-  --domain "智能体" \
-  --language "$LANGUAGE"
-```
-
-**场景2：分析本地PDF（无网络访问）**
-```bash
-# 手动上传PDF
-cp /path/to/local.pdf /tmp/paper_analysis/[ID].pdf
-
-# 执行分析（跳过步骤2的下载，使用本地 PDF 作为输入来源）
-uv run python "scripts/generate_note.py" \
-  --paper-id "[ID]" \
-  --title "[TITLE]" \
-  --authors "[AUTHORS]" \
-  --domain "[DOMAIN]" \
-  --language "$LANGUAGE"
-```
+只有在 `scripts/run_paper_analyze.py` 已经执行过、但你需要排查某一步失败原因时，才允许做手动调试。
+手动调试不能替代强制入口脚本，也不能作为默认执行路径。
 
 ### 注意事项
 
@@ -1136,7 +1042,7 @@ uv run python "scripts/generate_note.py" \
 2. **图片嵌入**：**必须使用 Obsidian wikilink 语法** `![[filename.png|800]]`
    - **禁止使用** `![alt](path%20encoded)` — URL 编码在 Obsidian 中不工作
    - Obsidian 会自动搜索 vault 中的文件名，无需写完整路径
-   - 从arXiv提取的图片可能是 `.pdf` 或 `.png` 格式
+   - 图片文件名必须直接取自 `extract-paper-images` 的实际返回结果，常见为 `.jpg`、`.png` 或 `.webp`
 3. **wikilinks**：必须使用 display alias `[[File_Name|Display Title]]`，禁止 bare `[[File_Name]]`
 4. **领域推断**：根据论文内容自动推断
 5. **相关论文**：在笔记中引用 `[[path/to/note|Paper Title]]`

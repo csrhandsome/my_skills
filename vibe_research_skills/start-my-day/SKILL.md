@@ -63,7 +63,7 @@ Then use this language setting throughout the workflow:
 
 ## 工作流程概述
 
-本 skill 使用 Python 脚本调用 arXiv API 搜索论文，解析 XML 结果并根据研究兴趣进行筛选和评分。
+本 skill 使用 Python 脚本通过 `arxiv` 库检索 arXiv，并结合 Semantic Scholar / OpenAlex 的热门补充分支进行筛选和评分。
 
 ## 步骤1：收集上下文（静默）
 
@@ -103,17 +103,18 @@ Then use this language setting throughout the workflow:
 
 ### 2.2 执行搜索和筛选
 
-使用 `scripts/search_arxiv.py` 脚本完成搜索、解析和筛选。
+使用 `scripts/search_arxiv.py` 脚本完成搜索、排重、筛选和评分。
 
-**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。
+**Python 环境说明**：如果系统安装了 `uv`，优先在 `$OBSIDIAN_VAULT_PATH` 下初始化项目环境（若不存在则执行 `uv init`），并通过 `uv run python ...` 执行后续所有 Python 命令；新增依赖统一使用 `uv add 包名`，不要安装到全局 Python。接入新版 arXiv 搜索时，至少执行一次 `uv add arxiv`；若当前环境还是空的，再补 `uv add pyyaml requests`。
 
 ```bash
-# 使用 Python 脚本搜索、解析和筛选 arXiv 论文
+# 使用 Python 脚本搜索、排重、筛选 arXiv 论文
 # 若使用 uv 环境，先在 "$OBSIDIAN_VAULT_PATH" 下执行 uv init（如需），然后用 uv run python 执行
 # 首先切换到 skill 目录，然后执行脚本
 cd "$SKILL_DIR"
 uv run python scripts/search_arxiv.py \
   --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
+  --existing-index existing_notes_index.json \
   --output arxiv_filtered.json \
   --max-results 200 \
   --top-n 10
@@ -126,12 +127,12 @@ uv run python scripts/search_arxiv.py \
 
 **脚本功能**：
 1. **搜索 arXiv**
-   - 调用 arXiv API 搜索指定分类的论文
+   - 通过 `arxiv` Python 库搜索指定分类与日期窗口的论文
    - 获取最多 200 篇最新论文
 
-2. **解析 XML 结果**
-   - 解析 API 返回的 XML
-   - 提取：ID、标题、作者、摘要、发布日期、分类
+2. **搜索前排重**
+   - 读取 `existing_notes_index.json`（如果提供）
+   - 按 arXiv ID、标题 alias、note filename alias 做确定性排重
 
 3. **应用筛选和评分**
    - 根据研究兴趣配置文件筛选论文
@@ -145,6 +146,7 @@ uv run python scripts/search_arxiv.py \
   - 发布日期、分类
   - 相关性评分、新近性评分、热门度评分、质量评分
   - 最终推荐评分、匹配的领域
+  - `duplicate_status`、`note_filename`
 
 ## 步骤3：读取筛选结果
 
@@ -396,7 +398,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 **重要格式规则**：
 - **Wikilink 必须使用 display alias**：`[[File_Name|Display Title]]`，不要使用 bare `[[File_Name]]`（下划线会直接显示，影响阅读）
 - **图片必须使用 Obsidian wikilink 嵌入语法**：`![[filename.png|600]]`，**禁止**使用 `![alt](path%20encoded)` 格式（URL 编码在 Obsidian 中不工作）
-- **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 arXiv API 未提供，从下载的源码包读取
+- **机构信息**：从论文 TeX 源码的 `\author` 或 `\affiliation` 字段提取；若 `arxiv` 检索结果未提供，从下载的源码包读取
 - **不要使用 `---` 作为"无数据"占位符**：使用 `--` 代替（三个短横线会被 Obsidian 解析为分隔线）
 
 #### 4.2.3 前三篇论文进行图片语义筛选和详细分析
@@ -441,7 +443,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
-![[existing_image_filename.png|600]]
+![[actual_returned_image_filename.ext|600]]
 
 **核心贡献/观点**：
 ...
@@ -465,7 +467,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 
 **一句话总结**：[一句话概括论文的核心贡献]
 
-![[paperID_fig1.png|600]]
+![[actual_returned_image_filename.ext|600]]
 
 **核心贡献/观点**：
 ...
@@ -481,7 +483,7 @@ Today's {paper_count} recommended papers focus on **{direction1}**, **{direction
 **图片格式规则（重要！）**：
 - **必须使用 Obsidian wikilink 嵌入语法**：`![[filename.png|600]]`
 - **禁止使用 markdown 图片语法**：~~`![alt](path%20with%20encoding)`~~ — URL 编码（`%20`, `%26`）在 Obsidian 中不工作
-- 图片文件名示例：`2603.24124_fig1.png`
+- 图片文件名必须直接取自 `extract-paper-images` 的实际返回结果；例如返回 `images/page0_fig1.jpg` 时，应嵌入 `![[page0_fig1.jpg|600]]`
 - Obsidian 会自动在 vault 中搜索匹配的文件名，无需写完整路径
 
 **详细报告说明**：
@@ -543,6 +545,10 @@ uv run python scripts/link_keywords.py \
   - 从候选图片中按语义作用选择用于总结的图片（方法/架构图优先，其次关键结果图）
   - 自动调用 `paper-analyze` 生成详细报告
   - 在"详细报告"字段显示 wikilink 关联
+- **MinerU 默认模式**：
+  - `start-my-day` 默认是快速推荐流程，不为普通条目启动完整 `extract`
+  - 如果只是临时读取 PDF 文本且不需要图片，优先使用 `mineru-open-api flash-extract`
+  - 只有前3篇需要图片或详细报告时，才调用 `extract-paper-images` / `paper-analyze` 进入完整 `extract`
 - **总结图片规则**：从前3篇候选论文中选择 2-3 张图片插入（优先方法/架构图与关键结果图；可选1张定性/消融图）
 - **其余论文展示**：其余论文只保留文本信息；如无通过语义验证的图片，不显示图片占位
 - **保持快速**：让用户快速了解当日推荐
@@ -617,6 +623,7 @@ uv run python scripts/link_keywords.py \
    cd "$SKILL_DIR"
    uv run python scripts/search_arxiv.py \
      --config "$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md" \
+     --existing-index existing_notes_index.json \
      --output arxiv_filtered.json \
      --max-results 200 \
      --top-n 10 \
@@ -695,8 +702,10 @@ uv run python scripts/link_keywords.py \
 ## 依赖项
 
 - Python 3.x（用于运行搜索和筛选脚本）
+- arXiv Python 库（新版检索入口；安装：`uv add arxiv`）
 - PyYAML（用于读取研究兴趣配置文件）
-- 网络连接（访问 arXiv API）
+- requests（用于 Semantic Scholar / OpenAlex 请求；若缺失则执行 `uv add requests`）
+- 网络连接（访问 arXiv / Semantic Scholar / OpenAlex）
 - `vibe_research/20_Research/Papers/` 目录（用于扫描现有笔记和保存详细报告）
 - `extract-paper-images` skill（用于提取论文图片）
 - `paper-analyze` skill（用于生成详细报告）
@@ -707,11 +716,12 @@ uv run python scripts/link_keywords.py \
 
 位于 `scripts/search_arxiv.py`，功能包括：
 
-1. **搜索 arXiv**：调用 arXiv API 获取论文
-2. **解析 XML**：提取论文信息（ID、标题、作者、摘要等）
-3. **筛选论文**：根据研究兴趣配置文件筛选
-4. **计算评分**：综合相关性、新近性、质量等维度
-5. **输出 JSON**：保存筛选后的结果到 `arxiv_filtered.json`
+1. **搜索 arXiv**：通过 `arxiv` Python 库获取 recent papers
+2. **搜索热门补充**：按需从 Semantic Scholar / OpenAlex 取过去一年热门论文
+3. **读取已有索引**：如果传入 `--existing-index`，按 arXiv ID / 标题 alias 做确定性排重
+4. **筛选论文**：根据研究兴趣配置文件筛选
+5. **计算评分**：综合相关性、新近性、质量等维度
+6. **输出 JSON**：保存筛选后的结果到 `arxiv_filtered.json`
 
 ### scan_existing_notes.py
 
@@ -750,7 +760,9 @@ uv run python scripts/scan_existing_notes.py \
     "blip": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
     "bootstrapping": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"],
     "vision-language": ["vibe_research/20_Research/Papers/多模态技术/BLIP_Bootstrapping-Language-Image-Pre-training.md"]
-  }
+  },
+  "seen_arxiv_ids": ["2402.12345"],
+  "seen_title_aliases": ["blip bootstrapping language image pre training for unified vision language understanding and generation"]
 }
 ```
 

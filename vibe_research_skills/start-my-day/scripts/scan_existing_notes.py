@@ -17,6 +17,7 @@ import yaml
 from common_words import COMMON_WORDS
 
 logger = logging.getLogger(__name__)
+ARXIV_ID_RE = re.compile(r'(?<!\d)(\d{4}\.\d{4,5})(?:v\d+)?(?!\d)', re.IGNORECASE)
 
 
 def parse_frontmatter(content: str) -> Dict:
@@ -98,6 +99,71 @@ def normalize_alias(text: str) -> str:
     return normalized
 
 
+def extract_arxiv_ids(*fields: object) -> List[str]:
+    """从一组字段中提取稳定的 arXiv ID（去掉版本号）。"""
+    seen = set()
+    arxiv_ids: List[str] = []
+
+    for field in fields:
+        if field is None:
+            continue
+
+        text = field if isinstance(field, str) else str(field)
+        for match in ARXIV_ID_RE.findall(text):
+            if match not in seen:
+                seen.add(match)
+                arxiv_ids.append(match)
+
+    return arxiv_ids
+
+
+def unique_preserve_order(values: List[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+
+    for value in values:
+        cleaned = value.strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        ordered.append(cleaned)
+
+    return ordered
+
+
+def build_dedupe_index(notes: List[Dict]) -> Dict[str, Dict[str, List[str]]]:
+    """为外部搜索脚本生成稳定排重索引。"""
+    note_paths_by_alias: Dict[str, set] = {}
+    note_paths_by_arxiv_id: Dict[str, set] = {}
+    seen_title_aliases: set = set()
+    seen_arxiv_ids: set = set()
+
+    for note in notes:
+        path = note.get('path')
+        if not path:
+            continue
+
+        for alias in note.get('aliases', []):
+            seen_title_aliases.add(alias)
+            note_paths_by_alias.setdefault(alias, set()).add(path)
+
+        for arxiv_id in note.get('arxiv_ids', []):
+            seen_arxiv_ids.add(arxiv_id)
+            note_paths_by_arxiv_id.setdefault(arxiv_id, set()).add(path)
+
+    return {
+        'seen_arxiv_ids': sorted(seen_arxiv_ids),
+        'seen_title_aliases': sorted(seen_title_aliases),
+        'note_paths_by_alias': {
+            alias: sorted(paths) for alias, paths in sorted(note_paths_by_alias.items())
+        },
+        'note_paths_by_arxiv_id': {
+            arxiv_id: sorted(paths)
+            for arxiv_id, paths in sorted(note_paths_by_arxiv_id.items())
+        },
+    }
+
+
 def should_exclude_note(md_file: Path, papers_dir: Path) -> bool:
     """排除图片目录和自动生成索引等不应进入论文索引的 markdown。"""
     try:
@@ -171,6 +237,22 @@ def scan_notes_directory(papers_dir: Path) -> List[Dict]:
                         tag_keywords.append(tag)
 
             note_info['tag_keywords'] = tag_keywords
+            note_info['title_alias'] = normalize_alias(note_info['title'])
+            note_info['short_name_alias'] = normalize_alias(note_info['short_name'])
+            note_info['aliases'] = unique_preserve_order([
+                note_info['title_alias'],
+                note_info['short_name_alias'],
+                normalize_alias(Path(note_info['filename']).stem),
+            ])
+            note_info['arxiv_ids'] = extract_arxiv_ids(
+                note_info['title'],
+                note_info['short_name'],
+                note_info['filename'],
+                note_info['path'],
+                frontmatter.get('paper_id'),
+                frontmatter.get('arxiv_id'),
+                frontmatter.get('id'),
+            )
 
             notes.append(note_info)
 
@@ -272,11 +354,13 @@ def main():
 
     keyword_index = build_keyword_index(notes)
     logger.info("Built index with %d keywords", len(keyword_index))
+    dedupe_index = build_dedupe_index(notes)
 
     # 准备输出
     output = {
         'notes': notes,
-        'keyword_to_notes': keyword_index
+        'keyword_to_notes': keyword_index,
+        **dedupe_index,
     }
 
     # 保存结果

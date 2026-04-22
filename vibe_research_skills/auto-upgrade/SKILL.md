@@ -98,7 +98,7 @@ You are the Auto Upgrade operator for `start-my-day`.
 读取最小必要文件：
 
 - 必读：`../start-my-day/SKILL.md`
-- 按需再读：`../start-my-day/scripts/search_arxiv.py`
+- 按需再读：`../paper-search/scripts/search_arxiv.py`
 - 按需再读：`../start-my-day/scripts/scan_existing_notes.py`
 - 按需再读：`../requirements.txt`
 
