@@ -54,7 +54,7 @@ uv run python scripts/scan_existing_notes.py \
 
 ## 步骤2：执行外部检索
 
-使用 `scripts/search_papers.py`。它内部复用 `start-my-day/scripts/search_arxiv.py` 的共享搜索核心，并默认输出 `paper-search` 格式 JSON。
+使用 `scripts/search_papers.py`。它内部复用 `paper-search/scripts/search_arxiv.py` 的共享搜索核心，并默认输出 `paper-search` 格式 JSON。
 
 ```bash
 cd "$SKILL_DIR"

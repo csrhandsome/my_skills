@@ -15,6 +15,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -182,6 +183,42 @@ def write_manifest(manifest_path, payload):
     manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def copy_file_to(src_path, dst_path):
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    if src_path.resolve() != dst_path.resolve():
+        shutil.copy2(src_path, dst_path)
+    return dst_path
+
+
+def sync_directory(src_dir, dst_dir):
+    if not src_dir.exists():
+        return None
+    dst_dir.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True)
+    return dst_dir
+
+
+def prepare_daily_workspace(vault_root, title, note_path, images_dir, pdf_path, keep_local_pdf):
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    daily_root = vault_root / "vibe_research" / "10_Daily"
+    daily_dir = daily_root / f"{date_str}_{sanitize_title(title)}"
+    daily_dir.mkdir(parents=True, exist_ok=True)
+
+    daily_report_path = copy_file_to(note_path, daily_dir / note_path.name)
+    daily_images_dir = sync_directory(images_dir, daily_dir / "images")
+
+    daily_pdf_path = None
+    if keep_local_pdf and pdf_path.exists():
+        daily_pdf_path = copy_file_to(pdf_path, daily_dir / pdf_path.name)
+
+    return {
+        "daily_dir": daily_dir,
+        "daily_report_path": daily_report_path,
+        "daily_images_dir": daily_images_dir or (daily_dir / "images"),
+        "daily_pdf_path": daily_pdf_path,
+    }
+
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -222,6 +259,7 @@ def main():
     notes_root = vault_root / "vibe_research" / "20_Research" / "Papers"
     work_dir = Path(args.work_dir).expanduser().resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
+    local_pdf_input = bool(args.pdf_path)
 
     pdf_path = resolve_pdf_path(args.pdf_path) if args.pdf_path else None
     run_id = paper_id or (pdf_path.stem if pdf_path else "paper_analyze")
@@ -346,9 +384,20 @@ def main():
         if not graph_path.exists():
             raise RuntimeError(f"图谱文件未生成: {graph_path}")
 
+    daily_outputs = prepare_daily_workspace(
+        vault_root=vault_root,
+        title=title,
+        note_path=note_path,
+        images_dir=images_dir,
+        pdf_path=pdf_path,
+        keep_local_pdf=local_pdf_input,
+    )
+
     manifest = {
         "paper_id": paper_id or pdf_path.stem,
         "pdf_path": str(pdf_path),
+        "input_mode": "local_pdf" if local_pdf_input else "downloaded_pdf",
+        "search_policy": "prefer_local_allow_external" if local_pdf_input else "allow_external_if_needed",
         "language": language,
         "domain": domain,
         "title": title,
@@ -359,15 +408,27 @@ def main():
         "index_path": str(index_path),
         "image_count": image_count,
         "graph_path": str(graph_path) if graph_path.exists() else "",
+        "daily_dir": str(daily_outputs["daily_dir"]),
+        "daily_report_path": str(daily_outputs["daily_report_path"]),
+        "daily_images_dir": str(daily_outputs["daily_images_dir"]),
+        "daily_pdf_path": str(daily_outputs["daily_pdf_path"]) if daily_outputs["daily_pdf_path"] else "",
     }
     manifest_path = run_root / "analysis_run.json"
     write_manifest(manifest_path, manifest)
+    daily_manifest_path = daily_outputs["daily_dir"] / "analysis_run.json"
+    write_manifest(daily_manifest_path, manifest)
 
     print(f"analysis_run.json: {manifest_path}")
     print(f"markdown_path: {markdown_path}")
     print(f"note_path: {note_path}")
     print(f"index_path: {index_path}")
     print(f"image_count: {image_count}")
+    print(f"daily_dir: {daily_outputs['daily_dir']}")
+    print(f"daily_report_path: {daily_outputs['daily_report_path']}")
+    print(f"daily_images_dir: {daily_outputs['daily_images_dir']}")
+    if daily_outputs["daily_pdf_path"]:
+        print(f"daily_pdf_path: {daily_outputs['daily_pdf_path']}")
+    print(f"daily_manifest_path: {daily_manifest_path}")
     if not args.skip_graph:
         print(f"graph_path: {graph_path}")
 

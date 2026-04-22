@@ -47,6 +47,22 @@ You are the Paper Analyzer for OrbitOS.
 - 如果脚本失败、缺少产物，必须立即报错并说明缺口
 - 不允许静默回退到“手工整理笔记”“直接读 main.tex”“只复用已有图片不执行 CLI / Python”
 
+# 信息源原则
+
+- 优先复用本地 PDF、已有笔记、`analysis_run.json`、MinerU markdown 和 `images/index.md`
+- 允许联网补充 arXiv 元数据、外部链接和 related work；不要因为本地 PDF 存在就默认禁用 web research
+- 只有在用户明确要求“只用本地资料”时，才切换到纯本地分析
+
+# Daily 工作目录
+
+`scripts/run_paper_analyze.py` 执行完成后，会额外创建一个 daily 工作目录，供最终分析报告落盘：
+
+- 目录格式：`vibe_research/10_Daily/YYYY-MM-DD_论文标题/`
+- `daily_report_path`：daily 目录下的最终分析报告工作副本
+- `daily_images_dir`：与最终报告同目录的图片目录
+- 如果输入是本地 PDF，脚本会把该 PDF 一并复制到这个 daily 目录
+- `note_path` 仍然是 `20_Research/Papers/` 下的归档笔记；正式补写分析时，优先编辑 `daily_report_path`，需要归档一致时再同步回 `note_path`
+
 # 工作流程
 
 ## 实现脚本
@@ -91,6 +107,7 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 1. **优先使用已有信息**
    - 如果用户已经给了 arXiv ID、标题或本地 PDF，直接基于现有输入继续
    - 如果库中已有对应笔记或 metadata，优先复用，不要重复拼装一套临时抓取流程
+   - 本地 PDF 存在时，先用本地产物建立分析骨架，但允许继续联网补 arXiv 元数据、外部链接和 related work
 
 2. **必要时补齐元数据**
    - 可以读取 arXiv 页面、已有笔记 frontmatter 或本地 PDF 附近的辅助文件来补齐标题、作者、日期
@@ -217,7 +234,8 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
    - 有什么改进空间？
 
 4. **与相关工作对比**
-   - 搜索相关历史论文
+   - 优先搜索本地库中已有的相关论文笔记和 `PaperGraph`
+   - 如有必要，允许继续联网补充相关工作
    - 与相似论文相比如何？
    - 补充了什么空白？
    - 属于哪个研究路线
@@ -808,7 +826,8 @@ Canvas 创建步骤：
 **论文**：[[论文标题]] (arXiv:XXXX.XXXXX)
 
 **分析状态**：✅ 已生成详细笔记
-**笔记位置**：[[vibe_research/20_Research/Papers/领域/YYYY-MM-DD-arXiv-ID.md]]
+**Daily 报告**：[[vibe_research/10_Daily/YYYY-MM-DD_论文标题/论文标题.md]]
+**归档笔记**：[[vibe_research/20_Research/Papers/领域/论文标题.md]]
 
 ---
 
@@ -990,8 +1009,12 @@ python "scripts/run_paper_analyze.py" \
 - `markdown_path`
 - `note_path`
 - `index_path`
+- `daily_dir`
+- `daily_report_path`
+- `daily_images_dir`
+- `daily_pdf_path`（如果输入是本地 PDF）
 
-只有在这些产物都存在之后，才允许继续补写分析正文。
+只有在这些产物都存在之后，才允许继续补写分析正文。默认把最终分析写进 `daily_report_path`。
 
 ### 手动分步执行（用于调试）
 
