@@ -358,19 +358,29 @@ def main():
 
     os.makedirs(output_dir, exist_ok=True)
 
-    is_pdf_file = os.path.isfile(paper_input)
+    input_path = Path(paper_input).expanduser()
+    if not input_path.is_absolute():
+        input_path = (Path.cwd() / input_path).resolve()
+    else:
+        input_path = input_path.resolve()
+
+    normalized_paper_input = paper_input
+    if paper_input.lower().startswith('arxiv:'):
+        normalized_paper_input = paper_input.split(':', 1)[1].strip()
+
+    is_pdf_file = input_path.is_file()
     arxiv_id = None
     pdf_path = None
 
     if is_pdf_file:
-        pdf_path = paper_input
+        pdf_path = str(input_path)
         filename = os.path.basename(pdf_path)
         match = re.search(r'(\d{4}\.\d+)', filename)
         if match:
             arxiv_id = match.group(1)
             print(f"检测到arXiv ID: {arxiv_id}")
     else:
-        arxiv_id = paper_input
+        arxiv_id = normalized_paper_input
 
     with tempfile.TemporaryDirectory() as temp_dir:
         all_figures = []

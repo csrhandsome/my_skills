@@ -38,6 +38,15 @@ You are the Paper Analyzer for OrbitOS.
 # 目标
 对特定论文进行深度分析，生成全面笔记，评估质量和价值，并更新知识库。
 
+# 强制执行要求
+
+在写任何正文分析之前，**必须先执行** `scripts/run_paper_analyze.py`。这是 `paper-analyze` 的唯一合法入口。
+
+- 必须真实执行脚本，不允许只阅读 PDF、源码、已有图片后手工跳过执行
+- 必须验证脚本产物存在：`analysis_run.json`、MinerU markdown、笔记文件、`images/index.md`
+- 如果脚本失败、缺少产物，必须立即报错并说明缺口
+- 不允许静默回退到“手工整理笔记”“直接读 main.tex”“只复用已有图片不执行 CLI / Python”
+
 # 工作流程
 
 ## 实现脚本
@@ -93,7 +102,11 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
    - 如果工作区或 vault 中已有本地 PDF，直接使用本地 PDF
    - 如果只有 arXiv ID，再先下载 PDF 到本地临时目录
 
-2. **正式分析默认命令**
+2. **唯一入口**
+   - 不要直接手工执行散落的命令
+   - 先运行 `scripts/run_paper_analyze.py`，由它统一调度 CLI、图片提取、笔记生成和图谱更新
+
+3. **正式分析默认命令**
    ```bash
    mineru-open-api extract "[PDF_PATH]" -o /tmp/paper_analysis/mineru_extract --language en --timeout 1800
    ```
@@ -101,7 +114,7 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
    - 这是正式深度分析的默认正文入口，不要改成手工读 TeX、手工拼章节或直接跳过 CLI
    - `extract` 需要 token，且通常耗时较长，任务运行期间不要手动 kill
 
-3. **仅临时纯文本预览时**
+4. **仅临时纯文本预览时**
    ```bash
    mineru-open-api flash-extract "[PDF_PATH]" -o /tmp/paper_analysis/mineru_flash
    ```
@@ -940,7 +953,7 @@ Canvas 创建步骤：
 
 - **论文未找到**：检查ID格式，建议搜索
 - **arXiv掉线**：使用缓存或稍后重试，在输出中注明局限性
-- **PDF解析失败**：回退到摘要，注明局限性
+- **PDF解析失败**：停止当前流程，报告 `run_paper_analyze.py` 的失败步骤；不要静默回退到只看摘要
 - **相关论文未找到**：说明缺乏上下文
 - **图谱更新失败**：继续但不更新图谱
 
@@ -950,75 +963,40 @@ Canvas 创建步骤：
 
 ### 快速执行（推荐）
 
-按以下顺序执行，不要再走手工下载源码/拼 TeX 的旧流程：
+先执行强制入口脚本；没有这一步，就不允许继续写分析正文：
 
 ```bash
-PAPER_ID="$1"
-TITLE="${2:-待定标题}"
-AUTHORS="${3:-待定作者}"
-DOMAIN="${4:-其他}"
-PDF_PATH="${5:-[本地PDF路径或下载后的PDF路径]}"
-
-# 1. 正文统一走 MinerU CLI 完整解析
-mineru-open-api extract "$PDF_PATH" -o /tmp/paper_analysis/mineru_extract --language en --timeout 1800
-
-# 2. 图片统一交给 extract-paper-images
-/extract-paper-images "$PAPER_ID"
-
-# 3. 生成笔记
-uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE"
-
-# 4. 更新图谱
-uv run python "scripts/update_graph.py" --paper-id "$PAPER_ID" --title "$TITLE" --domain "$DOMAIN" --score 8.8 --language "$LANGUAGE"
+uv run python "scripts/run_paper_analyze.py" \
+  --paper-id "$PAPER_ID" \
+  --pdf-path "$PDF_PATH" \
+  --title "$TITLE" \
+  --authors "$AUTHORS" \
+  --domain "$DOMAIN"
 ```
 
-上面的 bash 代码块是内嵌执行顺序示例。重点是：
-- 正文统一先走 `mineru-open-api extract`
-- 图片统一调用 `extract-paper-images`
-- `paper-analyze` 不再自己下载源码包、手工解 tar、手工拷图片
+如果环境里没有 `uv`，再退回：
+
+```bash
+python "scripts/run_paper_analyze.py" \
+  --paper-id "$PAPER_ID" \
+  --pdf-path "$PDF_PATH" \
+  --title "$TITLE" \
+  --authors "$AUTHORS" \
+  --domain "$DOMAIN"
+```
+
+脚本成功后，必须检查它打印出的这些路径是否真实存在：
+- `analysis_run.json`
+- `markdown_path`
+- `note_path`
+- `index_path`
+
+只有在这些产物都存在之后，才允许继续补写分析正文。
 
 ### 手动分步执行（用于调试）
 
-#### 步骤0：初始化环境
-```bash
-# 创建工作目录
-mkdir -p /tmp/paper_analysis
-cd /tmp/paper_analysis
-```
-
-#### 步骤1：识别论文
-```bash
-# 搜索已有笔记
-find "${VAULT_ROOT}/vibe_research/20_Research/Papers" -name "*${PAPER_ID}*" -type f
-```
-
-#### 步骤2：获取论文内容
-```bash
-# 正式深度分析默认走 MinerU CLI 完整解析
-mineru-open-api extract "[PDF_PATH]" -o /tmp/paper_analysis/mineru_extract --language en --timeout 1800
-```
-
-#### 步骤3：提取图片
-```bash
-# 图片统一交给 extract-paper-images
-/extract-paper-images "$PAPER_ID"
-```
-
-#### 步骤4：生成笔记
-```bash
-# 使用外部脚本生成笔记；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/generate_note.py" --paper-id "$PAPER_ID" --title "$TITLE" --authors "$AUTHORS" --domain "$DOMAIN" --language "$LANGUAGE"
-```
-
-#### 步骤5：更新图谱
-```bash
-# 使用外部脚本更新知识图谱；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/update_graph.py" --paper-id "$PAPER_ID" --title "$TITLE" --domain "$DOMAIN" --score 8.8 --language "$LANGUAGE"
-```
-
-#### 步骤6：使用obsidian-markdown skill修复格式
-
-分析完成后，调用`/obsidian-markdown`来确保frontmatter格式正确，然后手动补充详细内容。
+只有在 `scripts/run_paper_analyze.py` 已经执行过、但你需要排查某一步失败原因时，才允许做手动调试。
+手动调试不能替代强制入口脚本，也不能作为默认执行路径。
 
 ### 注意事项
 
