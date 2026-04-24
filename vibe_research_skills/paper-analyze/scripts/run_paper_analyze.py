@@ -198,14 +198,18 @@ def sync_directory(src_dir, dst_dir):
     return dst_dir
 
 
-def prepare_daily_workspace(vault_root, title, note_path, images_dir, pdf_path, keep_local_pdf):
+def prepare_daily_workspace(vault_root, title, note_path, pdf_path, keep_local_pdf):
+    """Prepare daily workspace with only the report markdown and optionally the PDF.
+
+    Images are NOT copied into the daily directory.
+    The report references images via Obsidian wikilinks from the Research directory.
+    """
     date_str = datetime.now().strftime("%Y-%m-%d")
     daily_root = vault_root / "vibe_research" / "10_Daily"
     daily_dir = daily_root / f"{date_str}_{sanitize_title(title)}"
     daily_dir.mkdir(parents=True, exist_ok=True)
 
     daily_report_path = copy_file_to(note_path, daily_dir / note_path.name)
-    daily_images_dir = sync_directory(images_dir, daily_dir / "images")
 
     daily_pdf_path = None
     if keep_local_pdf and pdf_path.exists():
@@ -214,7 +218,6 @@ def prepare_daily_workspace(vault_root, title, note_path, images_dir, pdf_path, 
     return {
         "daily_dir": daily_dir,
         "daily_report_path": daily_report_path,
-        "daily_images_dir": daily_images_dir or (daily_dir / "images"),
         "daily_pdf_path": daily_pdf_path,
     }
 
@@ -410,7 +413,6 @@ def main():
         vault_root=vault_root,
         title=title,
         note_path=note_path,
-        images_dir=images_dir,
         pdf_path=pdf_path,
         keep_local_pdf=local_pdf_input,
     )
@@ -439,7 +441,6 @@ def main():
         "graph_path": str(graph_path) if graph_path.exists() else "",
         "daily_dir": str(daily_outputs["daily_dir"]),
         "daily_report_path": str(daily_outputs["daily_report_path"]),
-        "daily_images_dir": str(daily_outputs["daily_images_dir"]),
         "daily_pdf_path": str(daily_outputs["daily_pdf_path"]) if daily_outputs["daily_pdf_path"] else "",
         "mineru_archive_dir": str(mineru_archive["mineru_archive_dir"]),
         "mineru_text_path": str(mineru_archive["mineru_text_path"]),
@@ -457,7 +458,6 @@ def main():
     print(f"image_count: {image_count}")
     print(f"daily_dir: {daily_outputs['daily_dir']}")
     print(f"daily_report_path: {daily_outputs['daily_report_path']}")
-    print(f"daily_images_dir: {daily_outputs['daily_images_dir']}")
     if daily_outputs["daily_pdf_path"]:
         print(f"daily_pdf_path: {daily_outputs['daily_pdf_path']}")
     print(f"daily_manifest_path: {daily_manifest_path}")
