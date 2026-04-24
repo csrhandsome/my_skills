@@ -84,8 +84,40 @@ status: analyzed
 - 块级示例：
     $$\\theta^* = \\arg\\min_\\theta L(\\theta)$$
 
-### 方法架构
-[架构描述和图片引用]
+### 方法架构总览
+- **输入**：[模型接收什么输入]
+- **输出**：[模型产出什么输出]
+- **核心组件**：[列出 backbone / planner / memory / decoder / reward model 等关键组件]
+- **端到端主流程**：
+  1. [步骤1：输入如何进入系统]
+  2. [步骤2：中间表示如何生成或传递]
+  3. [步骤3：最终预测/动作/生成结果如何得到]
+
+### 架构图
+![[actual_returned_image_filename.ext|800]]
+
+> 图1：[逐项解释图中的模块、箭头、信息流、输入输出和关键设计。如果论文没有可复用原图，则改成 Canvas 或文本图，并说明原因]
+
+### 模块拆解
+
+#### 模块1：[模块名称]
+- **职责**：[这个模块做什么]
+- **输入**：[接收什么]
+- **输出**：[产出什么]
+- **与其他模块关系**：[依赖谁，被谁消费]
+- **关键设计**：[为什么这样设计]
+
+#### 模块2：[模块名称]
+- **职责**：[这个模块做什么]
+- **输入**：[接收什么]
+- **输出**：[产出什么]
+- **与其他模块关系**：[依赖谁，被谁消费]
+- **关键设计**：[为什么这样设计]
+
+### 训练与推理流程
+- **训练阶段**：[训练时各模块如何协同，损失或监督来自哪里]
+- **推理阶段**：[推理时数据如何流动，哪些模块被调用]
+- **与现有方法的关键差异**：[这个架构相比 baseline / prior work 的结构差异]
 
 ### 关键创新
 
@@ -251,8 +283,40 @@ status: analyzed
 - Block example:
     $$\\theta^* = \\arg\\min_\\theta L(\\theta)$$
 
-### Method Architecture
-[Architecture description and image references]
+### Architecture Overview
+- **Inputs**: [What the model consumes]
+- **Outputs**: [What the model produces]
+- **Core Components**: [List key components such as backbone / planner / memory / decoder / reward model]
+- **End-to-End Pipeline**:
+  1. [Step 1: how input enters the system]
+  2. [Step 2: how intermediate states are created or passed]
+  3. [Step 3: how the final prediction / action / generation is produced]
+
+### Architecture Figure
+![[actual_returned_image_filename.ext|800]]
+
+> Figure 1: [Explain the modules, arrows, information flow, inputs/outputs, and the key design choices. If the paper has no reusable original figure, replace this with a Canvas or text diagram and explain why.]
+
+### Module Breakdown
+
+#### Module 1: [Module Name]
+- **Role**: [What this module does]
+- **Input**: [What it receives]
+- **Output**: [What it produces]
+- **Interaction with Other Modules**: [What it depends on and who consumes it]
+- **Key Design Choice**: [Why it is designed this way]
+
+#### Module 2: [Module Name]
+- **Role**: [What this module does]
+- **Input**: [What it receives]
+- **Output**: [What it produces]
+- **Interaction with Other Modules**: [What it depends on and who consumes it]
+- **Key Design Choice**: [Why it is designed this way]
+
+### Training and Inference Flow
+- **Training Phase**: [How modules interact during training, where supervision or loss comes from]
+- **Inference Phase**: [How data flows during inference and which modules are invoked]
+- **Key Structural Difference from Prior Work**: [How this architecture differs from baselines / prior methods]
 
 ### Key Innovations
 

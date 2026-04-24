@@ -47,6 +47,13 @@ You are the Paper Analyzer for OrbitOS.
 - 如果脚本失败、缺少产物，必须立即报错并说明缺口
 - 不允许静默回退到“手工整理笔记”“直接读 main.tex”“只复用已有图片不执行 CLI / Python”
 
+# 路径解析规则
+
+- 本 skill 中所有 `scripts/...` 相对路径，都必须相对于**当前加载的 `paper-analyze/SKILL.md` 所在目录**解析
+- 执行任何脚本前，先设定 `PAPER_ANALYZE_SKILL_DIR="[this SKILL.md's directory]"`；后续统一使用 `"$PAPER_ANALYZE_SKILL_DIR/scripts/..."`
+- 禁止把 `scripts/...` 解析到当前仓库根目录、vault 根目录或其他同名目录
+- 如果工作区里同时存在源码副本（如 `vibe_research_skills/paper-analyze/`）和已安装副本，默认使用**当前加载的 skill 副本**；只有当该副本本身就是当前加载 skill 时，才使用源码副本
+
 # 信息源原则
 
 - 优先复用本地 PDF、已有笔记、`analysis_run.json`、MinerU markdown 和 `images/index.md`
@@ -59,9 +66,21 @@ You are the Paper Analyzer for OrbitOS.
 
 - 目录格式：`vibe_research/10_Daily/YYYY-MM-DD_论文标题/`
 - `daily_report_path`：daily 目录下的最终分析报告工作副本
-- `daily_images_dir`：与最终报告同目录的图片目录
 - 如果输入是本地 PDF，脚本会把该 PDF 一并复制到这个 daily 目录
+- **daily 目录只保留 PDF 和摘要报告**，不存放图片文件
+- 报告中引用的图片均通过 Obsidian wikilink 语法（如 `![[filename.png|800]]`）从 `20_Research/Papers/[domain]/[title]/images/` 引用，Obsidian 会自动跨目录解析
 - `note_path` 仍然是 `20_Research/Papers/` 下的归档笔记；正式补写分析时，优先编辑 `daily_report_path`，需要归档一致时再同步回 `note_path`
+
+# Research 原始资料归档
+
+MinerU 提取的完整文本和所有图片必须在 `20_Research/Papers/` 目录下保留一份原始归档，确保论文原始内容不丢失：
+
+- 归档目录：`vibe_research/20_Research/Papers/[domain]/[paper_title]/mineru/`
+  - `mineru/[pdf_stem].md`：MinerU 提取的完整论文 Markdown 文本（包含内联图片引用 `![...](images/xxx.png)`）
+  - `mineru/images/`：MinerU 从 PDF 提取的所有原始图片文件
+- **必须保留**：完整文本和全部图片，不做筛选、不做裁剪
+- **目的**：即使后续分析笔记只引用部分图片，原始 MinerU 产物也要完整保留，方便回溯和二次利用
+- `scripts/run_paper_analyze.py` 执行过程中会自动将 MinerU 产物的 markdown 文件和 images 目录复制到归档目录
 
 # 工作流程
 
@@ -75,6 +94,7 @@ mkdir -p /tmp/paper_analysis
 cd /tmp/paper_analysis
 
 # 设置变量（从环境变量 OBSIDIAN_VAULT_PATH 读取，或让用户指定）
+PAPER_ANALYZE_SKILL_DIR="[directory containing this SKILL.md]"
 PAPER_ID="[PAPER_ID]"
 VAULT_ROOT="${OBSIDIAN_VAULT_PATH}"
 PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
@@ -162,6 +182,9 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
 2. **再决定是否插入**
    - 只插入能支撑一句话总结或关键贡献的图片
    - 如果 `extract-paper-images` 返回很多图，优先方法/架构图和关键结果图
+   - 如果论文原文存在方法/系统/流程/架构图，最终笔记**必须至少保留 1 张对应图**
+   - 不允许因为篇幅、token 或“先给摘要版”而省略架构图；架构图是 `paper-analyze` 的必需交付物，不是可选点缀
+   - 如果论文没有可直接复用的原生架构图，才允许退回到 Canvas；若 Canvas 也不可行，至少提供文本图并明确说明缺口
 
 ## 步骤3：执行深度分析
 
@@ -192,8 +215,15 @@ PAPERS_DIR="${VAULT_ROOT}/vibe_research/20_Research/Papers"
    - 方法组件及其关系
    - 数据流或处理流水线
    - 关键参数或配置
+   - 必须讲清楚输入是什么、输出是什么、信息如何在模块间流动
+   - 如果论文区分 training / inference、planner / executor、backbone / head、online / offline 等阶段，必须分别解释，不要压成一句话
 
-3. **评估方法新颖性**
+3. **完整架构讲解是必需项**
+   - 最终正文必须保留完整架构讲解，至少覆盖：整体目标、端到端流程、核心模块拆解、模块依赖关系、关键设计选择
+   - 每张架构图下都要写明图中模块、箭头/信息流、输入输出各自代表什么
+   - 不允许只写“模型由若干模块组成，详见原文图X”这种占位式描述
+
+4. **评估方法新颖性**
    - 这个方法有什么独特之处？
    - 与现有方法相比如何？
    - 有什么关键创新？
@@ -289,6 +319,9 @@ PAPER_TITLE="[论文标题，空格替换为下划线]"
 NOTE_PATH="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}.md"
 IMAGES_DIR="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/images"
 INDEX_PATH="${IMAGES_DIR}/index.md"
+MINERU_ARCHIVE_DIR="${PAPERS_DIR}/${DOMAIN}/${PAPER_TITLE}/mineru"
+MINERU_TEXT_PATH="${MINERU_ARCHIVE_DIR}/[pdf_stem].md"
+MINERU_IMAGES_DIR="${MINERU_ARCHIVE_DIR}/images"
 ```
 
 ### 4.2 使用Python生成笔记（正确处理Obsidian格式）
@@ -297,7 +330,7 @@ INDEX_PATH="${IMAGES_DIR}/index.md"
 
 ```bash
 # 调用外部脚本生成笔记；若使用 uv 环境，请先在 "$OBSIDIAN_VAULT_PATH" 下执行 uv init（如需）
-uv run python "scripts/generate_note.py" --paper-id "[PAPER_ID]" --title "[论文标题]" --authors "[作者]" --domain "[领域]" --language "$LANGUAGE"
+uv run python "$PAPER_ANALYZE_SKILL_DIR/scripts/generate_note.py" --paper-id "[PAPER_ID]" --title "[论文标题]" --authors "[作者]" --domain "[领域]" --language "$LANGUAGE"
 ```
 
 ### 4.3 使用obsidian-markdown skill生成最终笔记
@@ -317,7 +350,7 @@ cat "$GRAPH_PATH" 2>/dev/null || echo "{}"
 
 ```bash
 # 调用外部脚本更新知识图谱；若使用 uv 环境，请用 uv run python 执行
-uv run python "scripts/update_graph.py" --paper-id "[PAPER_ID]" --title "[论文标题]" --domain "[领域]" --score [评分] --language "$LANGUAGE"
+uv run python "$PAPER_ANALYZE_SKILL_DIR/scripts/update_graph.py" --paper-id "[PAPER_ID]" --title "[论文标题]" --domain "[领域]" --score [评分] --language "$LANGUAGE"
 ```
 
 ## 步骤4：生成综合论文笔记
@@ -405,9 +438,15 @@ status: analyzed
 #### 整体架构
 [描述方法的整体架构，包括主要组件和它们之间的关系]
 
+**完整性要求**：
+- 必须写清楚系统输入、系统输出、主干流程和关键中间表示
+- 必须明确模块之间是谁调用谁、谁生成谁、谁监督谁，而不是只列模块名字
+- 如果论文把方法拆成多个 stage / phase / stream / branch，逐个解释，不要合并带过
+
 **架构图选择原则**：
 1. **优先使用论文中的现成图** - 如果论文PDF中有架构图/流程图/方法图，直接插入
 2. **仅在无图时创建Canvas** - 当论文没有合适的架构图时，才用JSON Canvas自行绘制
+3. **最终笔记必须有架构可视化** - 原图、Canvas、文本图三者至少保留一种；如果论文有原图，优先原图
 
 **方式1：插入论文中的图（优先）**
 ```
@@ -416,6 +455,7 @@ status: analyzed
 > 图1：[架构描述，包括图中各个部分的含义和它们之间的关系]
 ```
 **注意**：图片文件名必须与 `extract-paper-images` 的实际返回结果匹配，常见为 `.jpg`、`.png` 或 `.webp`
+**必写说明**：图下至少补 2-4 句解释，说明模块分工、箭头含义、信息流向，以及这张图为何能支撑论文核心方法
 
 **方式2：创建Canvas架构图（论文无图时使用）**
 调用 `json-canvas` skill 创建 `.canvas` 文件，然后嵌入：
@@ -467,6 +507,11 @@ Canvas 创建步骤：
 
 ### 方法架构图
 [选择最适合的方式展示架构]
+
+**硬性要求**：
+- 这一节不得为空
+- 最终笔记必须出现至少一个架构可视化引用：`![[...]]`、`.canvas` 或最后备选的文本图
+- 如果论文原文已有架构图/方法图/系统图，优先保留原图，不允许只写纯文字总结
 
 **选择原则**：
 1. **优先使用论文中的架构图** - 如果论文中有合适的方法架构图、流程图或系统图，直接插入
@@ -826,8 +871,10 @@ Canvas 创建步骤：
 **论文**：[[论文标题]] (arXiv:XXXX.XXXXX)
 
 **分析状态**：✅ 已生成详细笔记
-**Daily 报告**：[[vibe_research/10_Daily/YYYY-MM-DD_论文标题/论文标题.md]]
+**Daily 报告**：[[vibe_research/10_Daily/YYYY-MM-DD_论文标题/论文标题.md]]（仅含 PDF + 摘要，图片从 Research 目录引用）
 **归档笔记**：[[vibe_research/20_Research/Papers/领域/论文标题.md]]
+**图片归档**：[[vibe_research/20_Research/Papers/领域/论文标题/images/]]
+**MinerU 原文归档**：[[vibe_research/20_Research/Papers/领域/论文标题/mineru/]]
 
 ---
 
@@ -883,9 +930,19 @@ Canvas 创建步骤：
 - **客观评分** - 使用一致的评分标准
 - **更新知识图谱** - 维护论文间关系
 - **图文并茂** - 论文中的核心图都要用上（核心架构图、方法图、实验结果图等），但插图前必须先完成图片语义验证（图的作用与价值）
+- **架构保真** - 最终笔记必须保留完整的方法架构讲解和至少一个架构可视化；如果论文原文有架构图，默认保留原图，不允许省略
 - **MinerU 默认模式** - `paper-analyze` 默认走完整版 `extract`，因为需要图片和完整内容；`flash-extract` 只适合其他 skill 的临时纯文本预览
+- **MinerU 原始资料归档** - MinerU 提取的完整 Markdown 文本和所有图片必须在 `20_Research/Papers/[domain]/[title]/mineru/` 保留一份完整归档，不做筛选和裁剪
 - **优雅处理错误** - 如果一个源失败则继续
 - **管理token使用** - 全面但不超出token限制
+
+## 交付前自检（必须）
+
+- `方法概述` / `Method Overview` 不能只有一句摘要，必须包含整体架构、端到端流程和模块拆解
+- 最终笔记必须包含至少一个架构可视化：原图、Canvas 或文本图
+- 如果论文原文存在原生架构图，最终笔记中必须出现至少一张对应原图；不能只保留文字
+- 每张架构图下都必须解释模块分工、箭头含义、输入输出和关键设计选择
+- 如果因为提取失败拿不到原图，必须在正文里明确写出失败点，再退回 Canvas 或文本图
 
 ### Obsidian 格式规则（必须遵守！）
 
@@ -985,7 +1042,8 @@ Canvas 创建步骤：
 先执行强制入口脚本；没有这一步，就不允许继续写分析正文：
 
 ```bash
-uv run python "scripts/run_paper_analyze.py" \
+PAPER_ANALYZE_SKILL_DIR="[directory containing this SKILL.md]"
+uv run python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
   --paper-id "$PAPER_ID" \
   --pdf-path "$PDF_PATH" \
   --title "$TITLE" \
@@ -996,7 +1054,8 @@ uv run python "scripts/run_paper_analyze.py" \
 如果环境里没有 `uv`，再退回：
 
 ```bash
-python "scripts/run_paper_analyze.py" \
+PAPER_ANALYZE_SKILL_DIR="[directory containing this SKILL.md]"
+python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
   --paper-id "$PAPER_ID" \
   --pdf-path "$PDF_PATH" \
   --title "$TITLE" \
@@ -1011,8 +1070,10 @@ python "scripts/run_paper_analyze.py" \
 - `index_path`
 - `daily_dir`
 - `daily_report_path`
-- `daily_images_dir`
 - `daily_pdf_path`（如果输入是本地 PDF）
+- `mineru_archive_dir`（MinerU 原始资料归档目录）
+- `mineru_text_path`（归档的完整 MinerU Markdown 文本）
+- `mineru_images_dir`（归档的 MinerU 原始图片目录）
 
 只有在这些产物都存在之后，才允许继续补写分析正文。默认把最终分析写进 `daily_report_path`。
 

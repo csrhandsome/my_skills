@@ -1,3 +1,4 @@
 .codex
 .DS_Store
 __pycache__
+ai_draw_skills/config.json
