@@ -6,6 +6,7 @@ This script is the only supported execution path for the paper-analyze skill.
 """
 
 import argparse
+import filecmp
 import json
 import logging
 import os
@@ -71,6 +72,32 @@ def sanitize_title(title):
     return safe or "untitled_paper"
 
 
+def strip_markdown_title(text):
+    text = re.sub(r"^#+\s*", "", text.strip())
+    text = re.sub(r"\s+", " ", text)
+    return text.strip(" -*_")
+
+
+def infer_title_from_markdown(markdown_path):
+    """Infer a paper title from MinerU markdown without depending on PDF filename."""
+    try:
+        lines = markdown_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return ""
+
+    for line in lines[:80]:
+        title = strip_markdown_title(line)
+        if not title:
+            continue
+        lower = title.lower()
+        if lower in {"abstract", "摘要", "introduction", "1 introduction"}:
+            continue
+        if title.startswith("!") or len(title) < 8:
+            continue
+        return title
+    return ""
+
+
 def resolve_pdf_path(value):
     if not value:
         return None
@@ -111,6 +138,15 @@ def download_arxiv_pdf(paper_id, work_dir):
 def ensure_tool_exists(tool_name):
     if shutil.which(tool_name):
         return
+    if tool_name == "mineru-open-api":
+        raise RuntimeError(
+            "未找到必需命令: mineru-open-api\n"
+            "请先安装并认证 MinerU Open API CLI，然后重试 paper-analyze。\n"
+            "安装命令: curl -fsSL https://cdn-mineru.openxlab.org.cn/open-api-cli/install.sh | sh\n"
+            "验证命令: mineru-open-api version\n"
+            "认证命令: mineru-open-api auth\n"
+            "说明: paper-analyze 不会自动执行安装脚本；需要用户确认安装和完成 token/auth。"
+        )
     raise RuntimeError(f"未找到必需命令: {tool_name}")
 
 
@@ -190,6 +226,35 @@ def copy_file_to(src_path, dst_path):
     return dst_path
 
 
+def versioned_path(path):
+    if not path.exists():
+        return path
+    for idx in range(2, 100):
+        candidate = path.with_name(f"{path.stem}-{idx}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError(f"无法生成不冲突的文件名: {path}")
+
+
+def move_file_to(src_path, dst_path):
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    if src_path.resolve() == dst_path.resolve():
+        return dst_path
+
+    final_dst = dst_path
+    if final_dst.exists():
+        try:
+            if filecmp.cmp(src_path, final_dst, shallow=False):
+                src_path.unlink()
+                return final_dst
+        except OSError:
+            pass
+        final_dst = versioned_path(final_dst)
+
+    shutil.move(str(src_path), str(final_dst))
+    return final_dst
+
+
 def sync_directory(src_dir, dst_dir):
     if not src_dir.exists():
         return None
@@ -199,10 +264,11 @@ def sync_directory(src_dir, dst_dir):
 
 
 def prepare_daily_workspace(vault_root, title, note_path, pdf_path, keep_local_pdf):
-    """Prepare daily workspace with only the report markdown and optionally the PDF.
+    """Prepare daily workspace with only the report markdown and optionally the moved local PDF.
 
     Images are NOT copied into the daily directory.
     The report references images via Obsidian wikilinks from the Research directory.
+    Local input PDFs are moved here so no duplicate remains in the launch directory.
     """
     date_str = datetime.now().strftime("%Y-%m-%d")
     daily_root = vault_root / "vibe_research" / "10_Daily"
@@ -213,7 +279,7 @@ def prepare_daily_workspace(vault_root, title, note_path, pdf_path, keep_local_p
 
     daily_pdf_path = None
     if keep_local_pdf and pdf_path.exists():
-        daily_pdf_path = copy_file_to(pdf_path, daily_dir / pdf_path.name)
+        daily_pdf_path = move_file_to(pdf_path, daily_dir / f"{sanitize_title(title)}.pdf")
 
     return {
         "daily_dir": daily_dir,
@@ -302,9 +368,6 @@ def main():
     authors = args.authors.strip() or ("待定作者" if language == "zh" else "Unknown Authors")
     domain = args.domain.strip() or ("其他" if language == "zh" else "Other")
 
-    existing_note = find_existing_note(notes_root, paper_id, title)
-    note_path = existing_note
-
     extract_dir = run_root / "mineru_extract"
     run_command(
         "mineru_extract",
@@ -324,6 +387,12 @@ def main():
     markdown_path = find_markdown_output(extract_dir, pdf_path.stem)
     if markdown_path is None:
         raise RuntimeError(f"MinerU 未生成 markdown 文件: {extract_dir}")
+
+    if not args.title.strip():
+        title = infer_title_from_markdown(markdown_path) or title
+
+    existing_note = find_existing_note(notes_root, paper_id, title)
+    note_path = existing_note
 
     if note_path is None:
         run_command(

@@ -1,0 +1,38 @@
+{
+  "defaults": {
+    "target": "gpt-image-2",
+    "timeout": 180,
+    "openai_compatible": {
+      "size": "1024x1024",
+      "quality": "medium",
+      "output_format": "png"
+    },
+    "gemini_native": {
+      "aspect_ratio": "16:9",
+      "image_size": "2K"
+    }
+  },
+  "targets": {
+    "gpt-image-2": {
+      "provider": "openai_compatible",
+      "transport": "openai_chat_completions",
+      "url": "https://www.packyapi.com/v1/chat/completions",
+      "api_key": "sk-Dd6pUyKIO34Ow0Gky68brVCXxxOkKE7RP9rYGGWW8SN2Vyyy",
+      "api_model": "gpt-image-2"
+    },
+    "gpt-image-2-ikun": {
+      "provider": "openai_compatible",
+      "transport": "openai_image_generation",
+      "url": "https://api.ikuncode.cc/v1/images/generations",
+      "api_key": "sk-NLzy7ve3yF9zXLHHmaUfV9y9mFUD9eifjpO0ZenDTZerpsqI",
+      "api_model": "gpt-image-2"
+    },
+    "gemini-3-pro-preview": {
+      "provider": "gemini_native",
+      "transport": "gemini_native",
+      "url": "https://api.ikuncode.cc/v1/images/generations",
+      "api_key": "sk-NLzy7ve3yF9zXLHHmaUfV9y9mFUD9eifjpO0ZenDTZerpsqI",
+      "api_model": "gemini-3-pro-preview"
+    }
+  }
+}

@@ -1,9 +1,9 @@
 ---
-name: ai-draw-skills
+name: ai-scientific-draw
 description: Create publication-style AI research figures and architecture diagrams for CCF/AI conference papers. Use when the user needs a clean system diagram, method overview, training-vs-inference pipeline, module interaction figure, or a small set of scientific illustrations generated from a textual description.
 ---
 
-# AI Draw Skills
+# AI Scientific Draw
 
 Use this skill when:
 - The user wants a paper-style architecture diagram, pipeline figure, framework overview, or method illustration.
@@ -12,10 +12,10 @@ Use this skill when:
 
 # Path Rules
 
-- Treat the directory containing this `SKILL.md` as `AI_DRAW_SKILL_DIR`.
-- Read configuration from `"$AI_DRAW_SKILL_DIR/config.json"`.
-- Generate images with `"$AI_DRAW_SKILL_DIR/scripts/generate_image.py"`.
-- Save all final outputs to `"$AI_DRAW_SKILL_DIR/img/"`.
+- Treat the directory containing this `SKILL.md` as `AI_SCIENTIFIC_DRAW_DIR`.
+- Read configuration from `"$AI_SCIENTIFIC_DRAW_DIR/config.json"`.
+- Generate images with `"$AI_SCIENTIFIC_DRAW_DIR/scripts/generate_image.py"`.
+- Save all final outputs to `"$AI_SCIENTIFIC_DRAW_DIR/img/"`.
 - Do not write final images to the repo root or other temporary folders unless the user explicitly asks for that.
 
 # Core Workflow
@@ -90,10 +90,10 @@ Aspect ratio: <ratio>.
 Default command:
 
 ```bash
-AI_DRAW_SKILL_DIR="[directory containing this SKILL.md]"
-uv run python "$AI_DRAW_SKILL_DIR/scripts/generate_image.py" \
+AI_SCIENTIFIC_DRAW_DIR="[directory containing this SKILL.md]"
+uv run python "$AI_SCIENTIFIC_DRAW_DIR/scripts/generate_image.py" \
   "<final prompt>" \
-  -o "$AI_DRAW_SKILL_DIR/img/architecture_v1.png"
+  -o "$AI_SCIENTIFIC_DRAW_DIR/img/architecture_v1.png"
 ```
 
 The script reads `config.json` as `defaults + targets`.
@@ -104,13 +104,13 @@ The script reads `config.json` as `defaults + targets`.
 If the user wants Gemini:
 
 ```bash
-AI_DRAW_SKILL_DIR="[directory containing this SKILL.md]"
-uv run python "$AI_DRAW_SKILL_DIR/scripts/generate_image.py" \
+AI_SCIENTIFIC_DRAW_DIR="[directory containing this SKILL.md]"
+uv run python "$AI_SCIENTIFIC_DRAW_DIR/scripts/generate_image.py" \
   "<final prompt>" \
   --target gemini-3-pro-preview \
   --aspect-ratio 16:9 \
   --image-size 2K \
-  -o "$AI_DRAW_SKILL_DIR/img/architecture_v1.png"
+  -o "$AI_SCIENTIFIC_DRAW_DIR/img/architecture_v1.png"
 ```
 
 For OpenAI-compatible models, tune with:
@@ -124,7 +124,7 @@ For Gemini, tune with:
 
 # Output Rules
 
-- Final output paths must be inside `ai_draw_skills/img/`.
+- Final output paths must be inside `ai-draw-skills/ai-scientific-draw/img/`.
 - Use clear file names such as:
   - `method_overview_v1.png`
   - `training_inference_split_v1.png`
@@ -139,7 +139,7 @@ Before finishing, check:
 - Labels are not tiny or overcrowded.
 - The ratio matches the content density.
 - The figure reads like a paper figure, not a poster ad or concept art.
-- The file is present in `ai_draw_skills/img/`.
+- The file is present in `ai-draw-skills/ai-scientific-draw/img/`.
 
 # Failure Handling
 

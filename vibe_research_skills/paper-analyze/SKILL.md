@@ -45,7 +45,7 @@ LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/vibe_research/research_
 入口脚本会创建：`vibe_research/10_Daily/YYYY-MM-DD_论文标题`
 
 - `daily_report_path`：最终分析报告工作副本，默认继续编辑这里。
-- `daily_pdf_path`：仅当输入是本地 PDF 时复制 PDF。
+- `daily_pdf_path`：仅当输入是本地 PDF 时移动 PDF 到 daily，移走原位置同名 PDF；daily 文件夹名优先使用论文标题，不要直接照搬 PDF 文件名。
 - **daily 目录只保留 PDF 和报告，不存图片。**
 - 报告图片用 Obsidian wikilink 引用 Research 目录图片，如：`![[filename.png|800]]`。
 
@@ -205,7 +205,9 @@ python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
 ## 错误处理
 
 - **PDF / arXiv 获取失败**：说明具体错误和下一步需要的输入。
-- **MinerU 失败**：停止流程，报告失败步骤；不要跳过正文提取。
+- **MinerU 命令缺失**：如果入口脚本报 `未找到必需命令: mineru-open-api`，停止分析并把脚本返回的安装/验证/认证命令原样反馈给用户；不要自动执行 curl 安装脚本，除非用户明确同意。
+- **MinerU 安装引导**：用户同意后再执行 `curl -fsSL https://cdn-mineru.openxlab.org.cn/open-api-cli/install.sh | sh`，然后执行 `mineru-open-api version` 验证；如未认证，提示用户执行 `mineru-open-api auth` 完成 token 配置。
+- **MinerU 解析失败**：停止流程，报告失败步骤；不要跳过正文提取，不要改用手工读 PDF 代替。
 - **图片索引缺失**：停止流程，说明 `images/index.md` 缺失。
 - **图谱更新失败**：可继续完成报告，但必须注明图谱未更新。
 - **路径不确定**：先定位当前加载的 `SKILL.md` 所在目录，不要猜当前工作目录。

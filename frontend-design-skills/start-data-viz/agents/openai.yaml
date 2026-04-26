@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start Data Viz"
+  short_description: "Start a data visualization page workflow"
+  default_prompt: "Start the data visualization page workflow from requirements, data analysis, page structure, and visual design. Assume the frontend environment is already prepared."
