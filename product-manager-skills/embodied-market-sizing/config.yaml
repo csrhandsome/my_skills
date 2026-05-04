@@ -1,0 +1,138 @@
+---
+# 具身智能市场规模估算配置
+# TAM/SAM/SOM 方法论，按场景/区域/时间维度的市场模型
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# 市场模型说明
+methodology:
+  tam_definition: "Total Addressable Market — 全球具身智能（含人形机器人）理论最大市场"
+  sam_definition: "Serviceable Addressable Market — 基于当前技术可达的场景市场规模"
+  som_definition: "Serviceable Obtainable Market — 基于特定时间段内可实际获得的市场份额"
+  estimation_approach: "场景渗透率 × 场景总规模 + 参考第三方报告交叉验证"
+
+# 场景市场基准
+scenarios:
+  - id: "industrial"
+    name_cn: "工业制造"
+    global_market_size: "$2.5T (全球工业自动化市场)"
+    robot_penetration_tam: 15
+    robot_penetration_sam: 5
+    robot_penetration_som_3y: 1
+    unit_asp: "$50K-$150K"
+    key_drivers: ["劳动力短缺", "柔性制造需求", "危险环境替代"]
+    key_barriers: ["ROI 不明确", "场景复杂度", "安全标准"]
+
+  - id: "logistics"
+    name_cn: "仓储物流"
+    global_market_size: "$200B (全球仓储自动化)"
+    robot_penetration_tam: 40
+    robot_penetration_sam: 15
+    robot_penetration_som_3y: 5
+    unit_asp: "$15K-$80K"
+    key_drivers: ["电商增长", "24/7 作业需求", "AMR 已有基础"]
+    key_barriers: ["现有自动化方案充分", "场景碎片化"]
+
+  - id: "home"
+    name_cn: "家庭服务"
+    global_market_size: "$500B (全球家政服务市场)"
+    robot_penetration_tam: 10
+    robot_penetration_sam: 2
+    robot_penetration_som_3y: 0.2
+    unit_asp: "$10K-$30K (消费者承受上限)"
+    key_drivers: ["老龄化", "双职工家庭", "消费电子巨头入场"]
+    key_barriers: ["成本过高", "泛化能力不足", "安全信任", "场景长尾"]
+
+  - id: "healthcare"
+    name_cn: "医疗康复"
+    global_market_size: "$50B (康复机器人市场)"
+    robot_penetration_tam: 30
+    robot_penetration_sam: 10
+    robot_penetration_som_3y: 5
+    unit_asp: "$30K-$200K"
+    key_drivers: ["老龄化", "康复需求增长", "医疗人力短缺"]
+    key_barriers: ["医疗器械认证周期长", "场景标准化难"]
+
+  - id: "commercial"
+    name_cn: "商业服务"
+    global_market_size: "$100B (商业服务机器人)"
+    robot_penetration_tam: 25
+    robot_penetration_sam: 8
+    robot_penetration_som_3y: 2
+    unit_asp: "$20K-$100K"
+    key_drivers: ["服务业劳动力短缺", "体验经济", "品牌差异化"]
+    key_barriers: ["场景碎片化", "ROI 难量化", "维护成本"]
+
+  - id: "agriculture"
+    name_cn: "农业"
+    global_market_size: "$30B (农业机器人)"
+    robot_penetration_tam: 35
+    robot_penetration_sam: 10
+    robot_penetration_som_3y: 3
+    unit_asp: "$30K-$150K"
+    key_drivers: ["农业劳动力严重短缺", "精准农业需求"]
+    key_barriers: ["户外环境复杂", "季节性强", "成本极高"]
+
+# 区域权重
+regions:
+  - name: "中国"
+    weight: 0.30
+    drivers: ["制造业升级政策", "人口老龄化加速", "完整的机器人供应链", "政府大规模补贴"]
+  - name: "北美"
+    weight: 0.30
+    drivers: ["AI 技术领先", "风险资本活跃", "工业劳动力成本高", "制造业回流"]
+  - name: "欧洲"
+    weight: 0.15
+    drivers: ["工业 4.0", "劳动力短缺", "高福利社会"]
+  - name: "日韩"
+    weight: 0.15
+    drivers: ["深度老龄化", "机器人文化接受度高", "精密制造基础"]
+  - name: "其他"
+    weight: 0.10
+    drivers: ["东南亚制造业转移", "中东主权基金投入"]
+
+# 时间线预测（人形机器人出货量）
+timeline:
+  - year: 2025
+    global_units: "~2K"
+    revenue: "~$200M"
+    stage: "实验室/小批量"
+  - year: 2026
+    global_units: "~8K"
+    revenue: "~$800M"
+    stage: "小批量试用"
+  - year: 2027
+    global_units: "~30K"
+    revenue: "~$2.5B"
+    stage: "工业场景早期部署"
+  - year: 2028
+    global_units: "~100K"
+    revenue: "~$7B"
+    stage: "多场景扩展"
+  - year: 2030
+    global_units: "~500K"
+    revenue: "~$30B"
+    stage: "规模化初期"
+
+# 报告数据源
+data_sources:
+  - "高盛 — 人形机器人市场报告 (2025)"
+  - "McKinsey — Next Frontiers in Robotics"
+  - "MarketsandMarkets — Humanoid Robot Market"
+  - "IDC — Worldwide Robotics Forecast"
+  - "36氪/IT桔子 — 中国机器人投融资数据"
+  - "中国电子学会 — 机器人产业发展报告"
+  - "各公司公开财务/出货数据"
+
+# 搜索配置
+aggregate_queries:
+  en:
+    - "humanoid robot market size forecast 2025 2030"
+    - "embodied AI robotics TAM SAM market report 2025"
+    - "industrial service robot shipment units 2025"
+  zh:
+    - "人形机器人 市场规模 预测 2025 2030"
+    - "具身智能 市场报告 TAM 2025"
+    - "机器人 出货量 市场规模 2025"

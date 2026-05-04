@@ -1,0 +1,146 @@
+---
+# 具身智能政策法规追踪配置
+# 覆盖主要经济体的产业政策、安全标准、伦理规范
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# 政策分类
+policy_categories:
+  - id: "industrial-policy"
+    name_cn: "产业政策/补贴"
+    description: "政府专项基金、税收优惠、产业园政策"
+    impact_level: "high"
+    watch_frequency: "quarterly"
+
+  - id: "safety-standards"
+    name_cn: "安全标准/认证"
+    description: "人形机器人安全标准、功能安全认证、碰撞测试"
+    impact_level: "critical"
+    watch_frequency: "monthly"
+
+  - id: "ethics-regulation"
+    name_cn: "伦理/监管"
+    description: "AI 伦理指南、机器人权利、隐私保护"
+    impact_level: "medium"
+    watch_frequency: "quarterly"
+
+  - id: "export-control"
+    name_cn: "出口管制"
+    description: "芯片/技术出口限制、实体清单、技术封锁"
+    impact_level: "high"
+    watch_frequency: "monthly"
+
+  - id: "talent-policy"
+    name_cn: "人才政策"
+    description: "机器人/AI 人才培养、海外人才引进"
+    impact_level: "medium"
+    watch_frequency: "yearly"
+
+  - id: "ip-protection"
+    name_cn: "知识产权"
+    description: "机器人相关专利政策、标准必要专利"
+    impact_level: "medium"
+    watch_frequency: "yearly"
+
+# 区域追踪
+regions:
+  - name: "China"
+    name_cn: "中国"
+    regulatory_bodies:
+      - "工信部 — 人形机器人揭榜挂帅"
+      - "科技部 — 国家重点研发计划"
+      - "市场监管总局 — 机器人安全标准"
+      - "发改委 — 产业结构调整指导目录"
+    key_policies:
+      - "《人形机器人创新发展指导意见》(2023.11)"
+      - "《“机器人+”应用行动实施方案》(2023)"
+      - "《新型工业化推进》— 人形机器人列为重点"
+      - "地方政策：北京、上海、深圳、杭州机器人产业园补贴"
+    watch_items:
+      - "人形机器人安全标准制定进展"
+      - "新一轮揭榜挂帅项目方向"
+      - "各省机器人补贴政策更新"
+
+  - name: "US"
+    name_cn: "美国"
+    regulatory_bodies:
+      - "NIST — 机器人安全框架"
+      - "FDA — 医疗机器人审批"
+      - "BIS — 出口管制 (芯片/技术)"
+      - "OSTP — AI 权利法案"
+    key_policies:
+      - "CHIPS Act — 半导体自主"
+      - "Executive Order on AI (2023)"
+      - "BIS 对华芯片出口管制逐步升级"
+      - "DoD 机器人/自主系统投入增加"
+    watch_items:
+      - "对华出口管制升级（Jetson Thor 等机器人芯片）"
+      - "NIST AI/机器人安全框架更新"
+      - "CFIUS 对中国机器人投资审查"
+
+  - name: "EU"
+    name_cn: "欧盟"
+    regulatory_bodies:
+      - "EU AI Act — 高风险 AI 系统监管"
+      - "CE 认证 — 机械指令 (2006/42/EC)"
+      - "GDPR — 机器人数据隐私"
+    key_policies:
+      - "EU AI Act 生效 (2024) — 机器人属高风险"
+      - "GDPR 对机器人采集数据的限制"
+      - "Horizon Europe 机器人专项"
+    watch_items:
+      - "AI Act 对人形机器人的具体要求"
+      - "CE 认证新规对国内出口影响"
+
+  - name: "Japan"
+    name_cn: "日本"
+    regulatory_bodies:
+      - "经产省 — 机器人革命实现委员会"
+      - "METI — 下一代机器人安全标准"
+    key_policies:
+      - "新机器人战略 (2023)"
+      - "介护机器人开发促进"
+      - "东京机器人产业特区"
+    watch_items:
+      - "日本安全标准是否引领全球"
+      - "介护保险覆盖机器人方案"
+
+  - name: "Korea"
+    name_cn: "韩国"
+    regulatory_bodies:
+      - "产业通商资源部"
+      - "KATS — 机器人安全标准"
+    key_policies:
+      - "K-Robot 计划"
+      - "机器人产业振兴院"
+      - "现代汽车集团机器人投入"
+    watch_items:
+      - "韩国机器人安全标准"
+
+# 政策影响分析框架
+impact_framework:
+  dimensions:
+    - name: "直接影响"
+      description: "直接影响产品设计/生产/销售/定价的政策"
+    - name: "间接影响"
+      description: "影响生态/供应链/人才/资本流动的政策"
+    - name: "时间窗口"
+      description: "政策生效前有多少准备时间（立即/6月/1年/2年+）"
+  risk_levels:
+    critical: "可能导致产品无法上市或市场准入被拒"
+    high: "显著增加成本或限制市场"
+    medium: "需要调整部分设计或流程"
+    low: "关注即可，短期无影响"
+
+# 搜索配置
+aggregate_queries:
+  en:
+    - "humanoid robot safety regulation standard 2025"
+    - "robotics AI policy export control 2025"
+    - "EU AI Act robotics humanoid regulation 2025"
+  zh:
+    - "人形机器人 政策 工信部 安全标准 2025"
+    - "具身智能 产业补贴 地方政府 2025"
+    - "机器人 出口管制 芯片限制 2025"

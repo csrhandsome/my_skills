@@ -1,0 +1,86 @@
+---
+# 具身智能行业周报配置
+# 每周一次，聚合 8 个 skill 的关键信号，输出 Obsidian-ready 图文周报
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# 周报结构
+sections:
+  - id: "headlines"
+    name_cn: "本周头条"
+    description: "3 条最重要的行业新闻，每条约 150 字 + 图片"
+    max_items: 3
+
+  - id: "company-radar"
+    name_cn: "公司动态速览"
+    description: "本周有动作的公司清单，每家公司 1-2 句话，侧重变化而非全面覆盖"
+    max_items: 10
+
+  - id: "funding-flash"
+    name_cn: "融资快讯"
+    description: "本周融资事件表格，只列关键信息"
+    fields: ["公司", "轮次", "金额", "投资方"]
+
+  - id: "tech-signal"
+    name_cn: "技术信号"
+    description: "本周值得关注的技术进展/论文/开源发布，1-2 条"
+    max_items: 2
+
+  - id: "product-update"
+    name_cn: "产品动态"
+    description: "新品发布、版本更新、demo 展示"
+    max_items: 3
+
+  - id: "what-to-watch"
+    name_cn: "下周关注"
+    description: "下周可能发生的事件、预计发布、会议日程"
+
+  - id: "pm-note"
+    name_cn: "PM 随想"
+    description: "本周对产品经理最有启发的一个洞察"
+
+# 搜索配置：每周 3-4 次聚合搜索即可覆盖
+search:
+  templates:
+    en:
+      - "\"humanoid robot\" OR \"embodied AI\" news announcement {week_range}"
+      - "robotics funding investment round {week_range}"
+      - "\"robot\" product launch demo release {week_range}"
+    zh:
+      - "具身智能 OR 人形机器人 新闻 动态 {week_range}"
+      - "机器人 融资 投资 {week_range}"
+      - "人形机器人 新品 发布 演示 {week_range}"
+  preferred_domains:
+    english:
+      - "techcrunch.com"
+      - "theverge.com"
+      - "reuters.com"
+      - "bloomberg.com"
+    chinese:
+      - "36kr.com"
+      - "jiqizhixin.com"
+      - "leiphone.com"
+      - "thepaper.cn"
+
+# Obsidian 输出配置
+obsidian:
+  vault_env_var: "OBSIDIAN_VAULT_PATH"
+  weekly_notes_folder: "vibe_research/10_Daily"
+  weekly_notes_subfolder: "Weekly_Briefs"
+  filename_template: "{YYYY-MM-DD}_具身智能周报.md"
+  image_folder: "vibe_research/90_Assets/weekly_brief_images"
+  link_to_skills:
+    company_tracker: "[[vibe_research/10_Daily/{YYYY-MM}_具身公司动态追踪]]"
+    tech_radar: "[[vibe_research/10_Daily/{YYYY-QQ}_技术雷达]]"
+
+# 图片策略
+image_strategy:
+  priority:
+    - "从新闻原文中提取主图（WebFetch 获取图片 URL）"
+    - "引用已有论文笔记中的图片（![[paper_images/xxx.png]]）"
+    - "标注 '暂无图片'，不强制配图"
+  max_images_per_brief: 5
+  preferred_size: "400"
+  note: "图片 URL 优先使用原始链接，必要时下载到 vault 的 90_Assets 目录"

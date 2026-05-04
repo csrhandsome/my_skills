@@ -1,0 +1,184 @@
+---
+# 具身智能场景需求分析配置
+# 场景 PMF 评估框架：技术可行性 × 经济可行性 × 需求强度 × 落地难度
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# PMF 评分维度
+pmf_dimensions:
+  - id: "tech_feasibility"
+    label: "技术可行性"
+    weight: 0.30
+    description: "当前技术是否能在 1-2 年内满足场景需求"
+  - id: "economic_viability"
+    label: "经济可行性"
+    weight: 0.25
+    description: "机器人方案 vs 人工/传统自动化的 ROI"
+  - id: "demand_intensity"
+    label: "需求强度"
+    weight: 0.25
+    description: "该场景的痛点程度、替代方案的缺失度"
+  - id: "deployment_complexity"
+    label: "落地复杂度"
+    weight: 0.20
+    description: "环境标准化程度、安全/合规门槛、集成难度"
+
+# 场景定义
+scenarios:
+  - id: "factory-assembly"
+    name_cn: "工厂装配"
+    category: "工业制造"
+    tech_feasibility: 3.5
+    economic_viability: 3.0
+    demand_intensity: 4.5
+    deployment_complexity: 3.0
+    pmf_score: 3.5
+    pmf_stage: "early-adopter"
+    description: "汽车/3C 装配线上的人形机器人替代人工"
+    pain_points:
+      - "装配线人工成本持续上升"
+      - "柔性制造需要频繁换线，传统自动化刚性"
+      - "某些工位工效学差，人员流失率高"
+    key_requirements:
+      - "双臂操作精度 ±2mm"
+      - "单工位任务切换 < 5 分钟"
+      - "与现有 MES/ERP 系统对接"
+      - "ROI < 2 年（vs 人工 $40K/yr）"
+    early_cases:
+      - "Tesla Optimus 在 Fremont 工厂执行简单装配"
+      - "Figure 02 在 BMW Spartanburg 工厂物料搬运"
+    timeline: "2025-2026 小批量试用，2027-2028 规模化"
+
+  - id: "warehouse-picking"
+    name_cn: "仓储拣选"
+    category: "仓储物流"
+    tech_feasibility: 4.0
+    economic_viability: 4.0
+    demand_intensity: 4.5
+    deployment_complexity: 3.5
+    pmf_score: 4.0
+    pmf_stage: "early-deployment"
+    description: "仓库内的物品拣选、打包、搬运"
+    pain_points:
+      - "电商履约中心人力成本占总成本 50%+"
+      - "季节性用工波动大（618/双11）"
+      - "SKU 种类多，传统自动化覆盖不全"
+    key_requirements:
+      - "抓取成功率 95%+ 对未知物体"
+      - "移动速度 ≥ 1.5 m/s"
+      - "续航 ≥ 6 小时"
+      - "自动充电/换电"
+    early_cases:
+      - "Digit (Agility) 在 Amazon/GXO 仓库"
+      - "Galbot 在零售仓储场景"
+    timeline: "2025-2027 扩展部署"
+
+  - id: "eldercare"
+    name_cn: "老人陪护"
+    category: "家庭服务"
+    tech_feasibility: 2.0
+    economic_viability: 2.5
+    demand_intensity: 5.0
+    deployment_complexity: 1.5
+    pmf_score: 2.8
+    pmf_stage: "emerging"
+    description: "帮助独居老人的日常起居、用药提醒、紧急响应"
+    pain_points:
+      - "中国 60+ 人口 3 亿+，独居比例攀升"
+      - "护理人员严重短缺（缺口 1000 万+）"
+      - "子女无法全天候照护"
+    key_requirements:
+      - "安全交互（力控 ≤ 5N 误触）"
+      - "语音/多模态交互"
+      - "24/7 待机 + 紧急呼叫"
+      - "价格 ≤ ¥30K（消费者心理价位）"
+    early_cases:
+      - "腾讯「小五」养老原型"
+      - "CloudMinds 云端机器人养老服务"
+    timeline: "2028-2030 可能起步"
+
+  - id: "housekeeping"
+    name_cn: "家务整理"
+    category: "家庭服务"
+    tech_feasibility: 1.5
+    economic_viability: 2.0
+    demand_intensity: 4.0
+    deployment_complexity: 1.0
+    pmf_score: 2.1
+    pmf_stage: "exploratory"
+    description: "清洁、整理、叠衣、洗碗等日常家务"
+    pain_points:
+      - "家务耗费大量时间（日均 2-3h）"
+      - "家政服务成本上升"
+    key_requirements:
+      - "通用物体操作（布料/玻璃/食品等）"
+      - "环境适应性（不同家庭布局）"
+      - "价格 ≤ ¥20K"
+      - "无需结构化环境"
+    early_cases:
+      - "Sunday Memo 洗碗/叠衣 demo"
+      - "1X NEO 家居操作"
+      - "Astribot S1 泡茶/叠衣"
+    timeline: "2030+ 可能进入早期市场"
+
+  - id: "rehabilitation"
+    name_cn: "康复训练"
+    category: "医疗康复"
+    tech_feasibility: 3.5
+    economic_viability: 3.5
+    demand_intensity: 4.0
+    deployment_complexity: 3.0
+    pmf_score: 3.5
+    pmf_stage: "early-deployment"
+    description: "中风/骨折后康复训练、运动功能评估"
+    pain_points:
+      - "康复治疗师严重短缺"
+      - "康复训练需高频重复，人工成本高"
+      - "居家康复缺乏专业指导"
+    key_requirements:
+      - "力控精度 < 1N"
+      - "个性化训练方案自适应"
+      - "医疗安全认证（NMPA/FDA）"
+      - "远程监控/医生接入"
+    early_cases:
+      - "Fourier 外骨骼康复机器人"
+      - "UBTECH Walker 医疗版"
+    timeline: "2026-2028 扩展"
+
+  - id: "retail-service"
+    name_cn: "零售导览"
+    category: "商业服务"
+    tech_feasibility: 4.0
+    economic_viability: 3.0
+    demand_intensity: 3.0
+    deployment_complexity: 4.0
+    pmf_score: 3.5
+    pmf_stage: "early-deployment"
+    description: "商场/展厅导览、餐厅送餐、酒店服务"
+    pain_points:
+      - "服务业招工难（餐饮/零售流失率高）"
+      - "品牌需要差异化体验"
+      - "标准化服务难以保障"
+    key_requirements:
+      - "人机交互自然（语音+手势）"
+      - "导航精度 ±10cm"
+      - "外观设计友好"
+      - "价格 ≤ ¥50K"
+    early_cases:
+      - "Galbot 零售 24/7 运营"
+      - "UBTECH Walker 服务场景"
+      - "CloudMinds 云端机器人"
+    timeline: "2026-2028 扩展"
+
+# 搜索配置
+aggregate_queries:
+  en:
+    - "humanoid robot deployment use case ROI 2025"
+    - "robot factory warehouse deployment real case study 2025"
+    - "home robot adoption consumer survey 2025"
+  zh:
+    - "人形机器人 落地场景 案例 2025"
+    - "具身智能 工厂 部署 投资回报 2025"
+    - "机器人 家庭 场景 消费者 调查 2025"

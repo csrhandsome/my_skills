@@ -1,0 +1,389 @@
+---
+# 具身智能公司追踪数据库
+# 覆盖国际 Tier1/Tier2 及国内成熟/新锐公司（含近期融资活跃企业）
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-04-30"
+
+search:
+  default_period_months: 1
+  languages: ["zh", "en"]
+  aggregate_queries:
+    en:
+      - "embodied AI humanoid robot companies news {month_year}"
+      - "Figure AI Tesla Optimus Boston Dynamics 1X Agility Generalist Sunday robotics news {month_year}"
+      - "robotics startup funding investment {month_year}"
+      - "Physical Intelligence Covariant Skild AI robot foundation model {month_year}"
+    zh:
+      - "具身智能 人形机器人 公司动态 {month_year}"
+      - "具身智能 融资 产品发布 {month_year}"
+      - "宇树 智元 傅利叶 优必选 星动纪元 逐际动力 超维动力 星海图 荣耀机器人 腾讯 Robotics {month_year}"
+      - "银河通用 智平方 开普勒 众擎 星尘智能 穹彻 加速进化 融资 {month_year}"
+
+companies:
+  international_tier1:
+    - name: "Figure AI"
+      chinese_name: ""
+      region: "US"
+      category: "Humanoid"
+      keywords: ["Figure AI", "Figure 02", "Figure 03", "Brett Adcock"]
+      focus: "通用人形机器人，工业与物流场景落地"
+      website: "https://www.figure.ai"
+      valuation_note: "估值约 $2.6B+ (2024)"
+
+    - name: "Tesla / Optimus"
+      chinese_name: "特斯拉 / 擎天柱"
+      region: "US"
+      category: "Humanoid"
+      keywords: ["Tesla Optimus", "Optimus Gen", "Optimus robot", "特斯拉 机器人", "擎天柱"]
+      focus: "通用人形机器人，依托汽车制造产业链与 FSD 技术迁移"
+      website: "https://www.tesla.com/optimus"
+
+    - name: "Boston Dynamics"
+      chinese_name: "波士顿动力"
+      region: "US"
+      category: "Humanoid / Quadruped"
+      keywords: ["Boston Dynamics", "Atlas", "电动 Atlas", "Spot", "现代汽车 波士顿动力"]
+      focus: "全电驱 Atlas，Spot 四足，现代汽车旗下"
+      website: "https://bostondynamics.com"
+
+    - name: "1X Technologies"
+      chinese_name: ""
+      region: "Norway/US"
+      category: "Humanoid"
+      keywords: ["1X Technologies", "1X NEO", "1X EVE", "OpenAI 机器人投资"]
+      focus: "家用/商用双足人形 NEO，EVE 轮式人形"
+      website: "https://www.1x.tech"
+      valuation_note: "OpenAI 投资"
+
+    - name: "Agility Robotics"
+      chinese_name: ""
+      region: "US"
+      category: "Humanoid"
+      keywords: ["Agility Robotics", "Digit robot", "Amazon Digit"]
+      focus: "物流场景人形 Digit，亚马逊仓库测试"
+      website: "https://www.agilityrobotics.com"
+
+    - name: "NVIDIA"
+      chinese_name: "英伟达"
+      region: "US"
+      category: "Platform / Chip"
+      keywords: ["NVIDIA GR00T", "Isaac Sim", "Jetson Thor", "NVIDIA 机器人"]
+      focus: "机器人计算平台 GR00T，Isaac Sim 仿真，Jetson 边缘计算"
+      website: "https://www.nvidia.com/en-us/autonomous-machines/"
+
+    - name: "Google DeepMind"
+      chinese_name: "谷歌 DeepMind"
+      region: "US/UK"
+      category: "Research / Foundation Model"
+      keywords: ["DeepMind robotics", "RT-2", "RT-X", "Gemini Robotics", "Google robot"]
+      focus: "RT 系列具身模型，Gemini Robotics，学术研究驱动"
+      website: "https://deepmind.google/"
+
+  international_tier2:
+    - name: "Sanctuary AI"
+      chinese_name: ""
+      region: "Canada"
+      category: "Humanoid"
+      keywords: ["Sanctuary AI", "Phoenix robot"]
+      focus: "通用人形 Phoenix，强调认知与物理能力并重"
+      website: "https://www.sanctuary.ai"
+
+    - name: "Apptronik"
+      chinese_name: ""
+      region: "US"
+      category: "Humanoid"
+      keywords: ["Apptronik", "Apollo robot", "NASA Valkyrie"]
+      focus: "人形 Apollo，NASA Valkyrie 合作，强调模块化"
+      website: "https://www.apptronik.com"
+
+    - name: "Physical Intelligence (Pi)"
+      chinese_name: ""
+      region: "US"
+      category: "Foundation Model / Software"
+      keywords: ["Physical Intelligence", "Pi robot", "robot foundation model", "π0"]
+      focus: "通用机器人基础模型 π0，软件定义具身智能"
+      website: "https://www.physicalintelligence.company"
+      valuation_note: "2024 大额融资，估值高企"
+
+    - name: "Covariant"
+      chinese_name: ""
+      region: "US"
+      category: "Foundation Model / Software"
+      keywords: ["Covariant", "Covariant RFM", "robot brain"]
+      focus: "机器人大脑 RFM，warehouse automation"
+      website: "https://covariant.ai"
+      valuation_note: "2025 被 Amazon 收购"
+
+    - name: "Skild AI"
+      chinese_name: ""
+      region: "US"
+      category: "Foundation Model / Software"
+      keywords: ["Skild AI", "Skild Brain", "general purpose robot AI"]
+      focus: "通用机器人智能 Skild Brain"
+      website: "https://www.skild.ai"
+
+    - name: "Generalist"
+      chinese_name: ""
+      region: "US"
+      category: "Foundation Model / Software"
+      keywords: ["Generalist AI", "GEN-1", "GEN-0", "Pete Florence", "Andy Zeng", "embodied scaling law"]
+      focus: "具身基础模型，发现 Scaling Law，低成本数据手套采集 27 万小时真实操作数据"
+      website: ""
+      valuation_note: "$140M 融资 ($440M 估值, 2025)"
+
+    - name: "MenteeBot"
+      chinese_name: ""
+      region: "Israel"
+      category: "Humanoid"
+      keywords: ["MenteeBot", "Mentee Robotics"]
+      focus: "家用/服务人形机器人"
+      website: "https://www.menteebot.com"
+
+    - name: "Sunday Robotics"
+      chinese_name: ""
+      region: "US"
+      category: "Humanoid (Wheeled)"
+      keywords: ["Sunday Robotics", "Sunday .ai", "Memo robot", "household robot", "Tony Zhao", "Mobile ALOHA", "Diffusion Policy"]
+      focus: "轮式家用机器人 Memo，Skill Capture Gloves 采集真实家庭数据，洗碗/叠衣/做咖啡"
+      website: ""
+      valuation_note: "$35M (Benchmark & Conviction), 10+ 前 Tesla 工程师"
+
+    - name: "Reflex Robotics"
+      chinese_name: ""
+      region: "US"
+      category: "Manipulation"
+      keywords: ["Reflex Robotics", "dual arm robot"]
+      focus: "双臂操作机器人，室内场景"
+      website: "https://www.reflexrobotics.ai"
+
+  domestic_tier1:
+    - name: "Unitree"
+      chinese_name: "宇树科技"
+      region: "CN"
+      category: "Humanoid / Quadruped"
+      keywords: ["宇树科技", "Unitree", "Unitree H1", "Unitree G1", "Unitree B2", "Unitree Go2", "王兴兴"]
+      focus: "四足机器人全球领先，H1/G1 人形机器人，高性价比路线"
+      website: "https://www.unitree.com"
+      valuation_note: "全球四足出货量第一"
+
+    - name: "Agibot"
+      chinese_name: "智元机器人"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["智元机器人", "Agibot", "远征A1", "远征A2", "稚晖君", "彭志辉"]
+      focus: "人形机器人远征系列，强调硬件+算法全栈，fast iteration"
+      website: "https://www.agibot.com"
+      valuation_note: "2024-2025 多轮融资"
+
+    - name: "Fourier Intelligence"
+      chinese_name: "傅利叶智能"
+      region: "CN"
+      category: "Humanoid / Exoskeleton"
+      keywords: ["傅利叶智能", "Fourier GR-1", "Fourier GR-2", "傅利叶 机器人"]
+      focus: "GR-1/GR-2 人形机器人，康复外骨骼起家"
+      website: "https://www.fftai.com"
+
+    - name: "UBTECH"
+      chinese_name: "优必选"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["优必选", "UBTECH", "UBTECH Walker", "Walker X", "优必选 人形"]
+      focus: "Walker 系列人形，港股上市，教育+服务+工业"
+      website: "https://www.ubtrobot.com"
+      valuation_note: "港股上市 (09880.HK)"
+
+    - name: "CloudMinds"
+      chinese_name: "达闼科技"
+      region: "CN"
+      category: "Humanoid / Cloud Robot"
+      keywords: ["达闼科技", "CloudMinds", "达闼 人形", "云端机器人"]
+      focus: "云端大脑+本地躯壳架构，人形机器人"
+      website: "https://www.cloudminds.com"
+
+    - name: "DeepRobotics"
+      chinese_name: "云深处科技"
+      region: "CN"
+      category: "Quadruped"
+      keywords: ["云深处科技", "DeepRobotics", "绝影", "Jueying", "绝影 X20", "绝影 Lite"]
+      focus: "绝影系列四足机器人，工业巡检"
+      website: "https://www.deeprobotics.cn"
+
+    - name: "XingHaiTu / RoboStar"
+      chinese_name: "星海图"
+      region: "CN"
+      category: "Humanoid / Platform"
+      keywords: ["星海图", "RoboStar", "XingHaiTu", "R1 Pro", "R1 Lite", "EFM-1", "EDP 开发平台"]
+      focus: "R1 Pro/R1 Lite 人形+轮式双臂，EDP 全链路开发平台，EFM-1 双系统模型，出货量行业第一"
+      website: ""
+      valuation_note: "Pre-A~A5 总融资近 ¥15亿 (蚂蚁/美团/高瓴/IDG), 李飞飞/Pi 团队客户"
+
+    - name: "Beijing Humanoid Robot Innovation Center"
+      chinese_name: "北京人形机器人创新中心"
+      region: "CN"
+      category: "Humanoid / Platform"
+      keywords: ["北京人形机器人创新中心", "具身天工", "Tiangong", "慧思开物", "Huisi Kaiwu", "熊友军", "国家地方共建"]
+      focus: "国家级创新平台，具身天工系列（半马冠军），慧思开物通用平台（已开源），年产 5000 台套"
+      website: ""
+      valuation_note: "首轮超 ¥7亿 (百度/东土科技/北京国资), 原优必选 CTO 熊友军任 CEO"
+
+    - name: "Honor Robotics"
+      chinese_name: "荣耀机器人"
+      region: "CN"
+      category: "Humanoid / Consumer Robot"
+      keywords: ["荣耀机器人", "Honor robot", "ROBOT PHONE", "阿尔法战略", "荣耀 闪电", "荣耀 元气仔"]
+      focus: "ROBOT PHONE 手机机器人，人形「闪电」「元气仔」（目标 ¥12.8-15.8 万），阿尔法战略 5 年 $10B，五大实验室"
+      website: ""
+      valuation_note: "荣耀旗下新产业孵化部，IROS 2025 桃源赛夺冠，2026 计划量产"
+
+    - name: "Tencent Robotics X"
+      chinese_name: "腾讯 Robotics X"
+      region: "CN"
+      category: "Platform / Software"
+      keywords: ["腾讯 Robotics X", "Tencent robotics", "Tairos", "钛螺丝", "TRX-Hand", "腾讯 具身", "犀牛鸟"]
+      focus: "不造本体，Tairos 具身智能开放平台（大脑+小脑），与 40+ 家企业合作，模块化软件栈"
+      website: "https://tairos.tencent.com/"
+      valuation_note: "腾讯旗下实验室（2018 成立），Max/Ollie/TRX-Hand/小五等原型，犀牛鸟研究计划"
+
+  domestic_tier2:
+    - name: "RobotEra"
+      chinese_name: "星动纪元"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["星动纪元", "RobotEra", "Star1", "陈建宇"]
+      focus: "人形机器人，清华背景，轮足/双足"
+      website: ""
+      valuation_note: "近期融资活跃"
+
+    - name: "LimX Dynamics"
+      chinese_name: "逐际动力"
+      region: "CN"
+      category: "Humanoid / Quadruped"
+      keywords: ["逐际动力", "LimX Dynamics", "LimX", "逐际 人形", "阿里 逐际"]
+      focus: "人形+四足双路线，强化学习驱动，阿里投资"
+      website: "https://www.limxdynamics.com"
+      valuation_note: "阿里投资，2024-2025 多轮融资"
+
+    - name: "GalaxyBot"
+      chinese_name: "银河通用"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["银河通用", "GalaxyBot", "银河 人形"]
+      focus: "人形机器人，强调通用性与成本"
+      website: ""
+      valuation_note: "近期大额融资"
+
+    - name: "Square Intelligence"
+      chinese_name: "智平方"
+      region: "CN"
+      category: "Embodied Intelligence"
+      keywords: ["智平方", "Square Intelligence", "智平方 具身"]
+      focus: "具身智能解决方案"
+      website: ""
+      valuation_note: "近期融资"
+
+    - name: "Kepler"
+      chinese_name: "开普勒机器人"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["开普勒机器人", "Kepler robot", "开普勒 人形"]
+      focus: "人形机器人，近期发布新品"
+      website: ""
+
+    - name: "EngineAI"
+      chinese_name: "众擎机器人"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["众擎机器人", "EngineAI", "众擎 SA01", "众擎 PM01"]
+      focus: "低成本人形机器人 SA01/PM01"
+      website: "https://www.engineai.com.cn"
+
+    - name: "Astribot"
+      chinese_name: "星尘智能"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["星尘智能", "Astribot", "Astribot S1", "星尘 机器人"]
+      focus: "人形 S1，泡茶/叠衣 demo 出圈，强调操作能力"
+      website: "https://www.astribot.com"
+
+    - name: "Paxini"
+      chinese_name: "帕西尼感知"
+      region: "CN"
+      category: "Sensor / Haptics"
+      keywords: ["帕西尼感知", "Paxini", "Paxini Perception", "触觉传感器"]
+      focus: "多维触觉传感器，机器人灵巧手感知"
+      website: "https://www.paxini.com"
+      valuation_note: "近期融资"
+
+    - name: "Independent Variable Robot"
+      chinese_name: "自变量机器人"
+      region: "CN"
+      category: "Embodied Intelligence"
+      keywords: ["自变量机器人", "Independent Variable Robot"]
+      focus: "通用具身智能"
+      website: ""
+      valuation_note: "近期融资"
+
+    - name: "Qianxun Intelligence"
+      chinese_name: "千寻智能"
+      region: "CN"
+      category: "Embodied Intelligence"
+      keywords: ["千寻智能", "Qianxun Intelligence", "千寻 具身"]
+      focus: "具身智能大模型"
+      website: ""
+      valuation_note: "近期融资"
+
+    - name: "RealMate / Qiongche"
+      chinese_name: "穹彻智能"
+      region: "CN"
+      category: "Embodied Intelligence"
+      keywords: ["穹彻智能", "Qiongche", "RealMate", "复旦 穹彻", "穹彻 具身"]
+      focus: "具身智能，复旦背景"
+      website: ""
+      valuation_note: "近期融资"
+
+    - name: "Booster Robotics"
+      chinese_name: "加速进化"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["加速进化", "Booster Robotics", "Booster T1"]
+      focus: "人形机器人，强调运动性能"
+      website: ""
+      valuation_note: "近期融资"
+
+    - name: "Instime Robot"
+      chinese_name: "因时机器人"
+      region: "CN"
+      category: "Actuator / Hand"
+      keywords: ["因时机器人", "Instime", "微型伺服电缸", "因时 灵巧手"]
+      focus: "微型伺服电缸，机器人灵巧手核心零部件"
+      website: "https://www.instime.cn"
+      valuation_note: "近期融资"
+
+    - name: "Kinetix AI"
+      chinese_name: "超维动力"
+      region: "CN"
+      category: "Humanoid"
+      keywords: ["超维动力", "Kinetix AI", "KAI robot", "KAI Halo", "超维 人形", "松禾资本"]
+      focus: "全尺寸人形 KAI，115 DoF（公开最高），全身触觉皮肤 80% 覆盖，世界模型+动作模型+评估模型三架构"
+      website: ""
+      valuation_note: "2025 天使轮 + Pre-A (松禾资本), 华为/港大/小鹏 IRON 团队"
+
+    - name: "Tihoo Robot"
+      chinese_name: "钛虎机器人"
+      region: "CN"
+      category: "Actuator"
+      keywords: ["钛虎机器人", "Tihoo", "钛虎 关节", "关节模组"]
+      focus: "机器人关节模组，核心零部件"
+      website: "https://www.tihoorobot.com"
+      valuation_note: "近期融资"
+
+    - name: "ArcheBase"
+      chinese_name: "智域基石"
+      region: "CN"
+      category: "Data Infrastructure"
+      keywords: ["智域基石", "ArcheBase", "具身数据", "数据编译", "灵初智能", "穹彻智能"]
+      focus: "具身智能数据基础设施，数据编译管线五环节，规划 1 万㎡真机采集工厂"
+      website: ""
+      valuation_note: "天使轮数千万 (灵初/穹彻/浙人形/智平方联合投资), 前 PingCAP+腾讯+华为团队"

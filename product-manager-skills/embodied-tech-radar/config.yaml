@@ -1,0 +1,312 @@
+---
+# 具身智能技术趋势雷达配置
+# 跟踪关键技术领域的成熟度、信号强度和代表性公司
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-04-30"
+  description: "Embodied AI Technology Radar — 技术领域成熟度追踪"
+
+# 信号权重配置（用于计算技术热度）
+scoring:
+  paper_weight: 0.30        # 学术论文信号
+  company_weight: 0.35      # 公司产品/发布信号
+  funding_weight: 0.20      # 融资信号
+  public_sentiment: 0.15    # 公众/媒体信号
+
+# 成熟度等级定义
+maturity_levels:
+  research: "学术研究阶段 — 核心问题未解决，以论文为主"
+  emerging: "新兴阶段 — 有 demo/实验室原型，startup 开始布局"
+  productizing: "产品化阶段 — 有实际产品/商用，多家公司跟进"
+  scaling: "规模化阶段 — 供应链成熟，多场景落地"
+
+# 技术领域
+tech_areas:
+  - id: "foundation-models"
+    name: "具身基础模型 / VLA"
+    name_cn: "具身基础模型 (VLA)"
+    description: "Vision-Language-Action 模型，通用机器人大脑"
+    maturity: "emerging"
+    signal_strength: 5
+    trend: "accelerating"
+    keywords:
+      - "vision language action"
+      - "VLA model"
+      - "robot foundation model"
+      - "embodied foundation model"
+      - "RT-2"
+      - "RT-X"
+      - "Octo"
+      - "OpenVLA"
+      - "π0"
+      - "SpatialVLM"
+      - "Manipulation anything"
+      - "robotic transformer"
+    key_players:
+      - "Physical Intelligence (Pi)"
+      - "Google DeepMind"
+      - "Skild AI"
+      - "Generalist (GEN-1)"
+      - "Covariant"
+      - "NVIDIA (GR00T)"
+      - "腾讯 Robotics X (Tairos)"
+      - "智元机器人 (Agibot)"
+      - "星海图 (EFM-1)"
+      - "穹彻智能"
+      - "千寻智能"
+    watch_signals:
+      - "新 VLA 模型发布（参数、任务成功率、泛化能力）"
+      - "开源模型生态（HuggingFace 排名）"
+      - "与硬件本体集成落地案例"
+
+  - id: "dexterous-manipulation"
+    name: "灵巧操作"
+    name_cn: "灵巧操作"
+    description: "灵巧抓取、双手协同、长周期操作任务"
+    maturity: "research"
+    signal_strength: 4
+    trend: "accelerating"
+    keywords:
+      - "dexterous manipulation"
+      - "robotic grasping"
+      - "bimanual manipulation"
+      - "in-hand manipulation"
+      - "dexterous hand"
+      - "long-horizon manipulation"
+      - "fine manipulation"
+    key_players:
+      - "Sanctuary AI"
+      - "Tesla Optimus"
+      - "Figure AI"
+      - "1X Technologies"
+      - "Sunday Robotics (Memo)"
+      - "星尘智能 (Astribot)"
+      - "超维动力 (Kinetix AI, 115 DoF)"
+      - "帕西尼感知 (Paxini)"
+      - "智域基石 (ArcheBase 数据)"
+    watch_signals:
+      - "通用抓取成功率突破（从 80% → 95%+）"
+      - "双手协同操作 demo（如叠衣、装配）"
+      - "灵巧手自由度提升（从 6DOF → 20+DOF）"
+
+  - id: "bipedal-locomotion"
+    name: "双足运动控制"
+    name_cn: "双足运动控制"
+    description: "双足行走、奔跑、动态平衡、全身控制"
+    maturity: "productizing"
+    signal_strength: 4
+    trend: "stable"
+    keywords:
+      - "bipedal locomotion"
+      - "whole-body control"
+      - "model predictive control"
+      - "humanoid walking"
+      - "reinforcement learning locomotion"
+      - "dynamic locomotion"
+      - "blind locomotion"
+    key_players:
+      - "Boston Dynamics (Atlas)"
+      - "Tesla Optimus"
+      - "Unitree (宇树)"
+      - "Agibot (智元)"
+      - "北京人形机器人创新中心 (具身天工)"
+      - "星海图 (R1 Pro)"
+      - "LimX Dynamics (逐际动力)"
+      - "Booster Robotics (加速进化)"
+    watch_signals:
+      - "室外复杂地形行走（楼梯、斜坡、草地）"
+      - "步态速度突破（从 1m/s → 3m/s+）"
+      - "抗扰动能力和跌倒恢复"
+
+  - id: "sim2real"
+    name: "Sim2Real 仿真迁移"
+    name_cn: "仿真迁移 (Sim2Real)"
+    description: "仿真训练到真实部署的迁移技术"
+    maturity: "productizing"
+    signal_strength: 3
+    trend: "stable"
+    keywords:
+      - "sim-to-real"
+      - "sim2real"
+      - "domain randomization"
+      - "Isaac Sim"
+      - "MuJoCo"
+      - "robot simulation"
+      - "digital twin"
+      - "synthetic data generation"
+    key_players:
+      - "NVIDIA (Isaac Sim, Isaac Lab)"
+      - "Google DeepMind (MuJoCo)"
+      - "Unitree (宇树)"
+      - "Agibot (智元)"
+    watch_signals:
+      - "仿真训练的 policy zero-shot 迁移成功率"
+      - "新仿真平台/工具发布"
+
+  - id: "tactile-sensing"
+    name: "触觉感知"
+    name_cn: "触觉感知"
+    description: "触觉传感器、力/力矩感知、多模态触觉融合"
+    maturity: "emerging"
+    signal_strength: 3
+    trend: "accelerating"
+    keywords:
+      - "tactile sensing"
+      - "tactile sensor"
+      - "GelSight"
+      - "force torque sensor"
+      - "multimodal perception"
+      - "haptic feedback"
+      - "robot skin"
+    key_players:
+      - "帕西尼感知 (Paxini)"
+      - "超维动力 (全身触觉皮肤 80% 覆盖)"
+      - "GelSight"
+      - "Shadow Robot"
+      - "因时机器人 (Instime)"
+    watch_signals:
+      - "触觉传感器成本下降（从 $10K → $1K/单元）"
+      - "商业化产品发布"
+
+  - id: "teleoperation-data"
+    name: "遥操作与数据"
+    name_cn: "遥操作与数据采集"
+    description: "遥操作系统、模仿学习数据采集管线"
+    maturity: "productizing"
+    signal_strength: 3
+    trend: "accelerating"
+    keywords:
+      - "teleoperation"
+      - "robot data collection"
+      - "imitation learning"
+      - "robot demonstration"
+      - "bilateral teleoperation"
+      - "action chunking"
+      - "diffusion policy"
+    key_players:
+      - "Tesla Optimus"
+      - "Figure AI"
+      - "1X Technologies"
+      - "Generalist (data hands)"
+      - "Sunday Robotics (Skill Capture Gloves)"
+      - "智域基石 (ArcheBase, 数据编译)"
+      - "Agibot (智元)"
+      - "星海图 (EDP 平台)"
+    watch_signals:
+      - "遥操作设备成本降低"
+      - "单次演示可泛化到多种任务"
+
+  - id: "3d-vision"
+    name: "3D 视觉与空间智能"
+    name_cn: "3D 视觉 / 空间智能"
+    description: "3D 重建、空间理解、NeRF/3D Gaussian Splatting"
+    maturity: "productizing"
+    signal_strength: 3
+    trend: "stable"
+    keywords:
+      - "3D vision"
+      - "spatial intelligence"
+      - "NeRF"
+      - "Gaussian Splatting"
+      - "point cloud"
+      - "depth estimation"
+      - "SLAM"
+      - "scene understanding"
+    key_players:
+      - "NVIDIA"
+      - "Google DeepMind (SpatialVLM)"
+      - "各机器人整机厂"
+    watch_signals:
+      - "实时 3D 重建在边缘设备上的性能"
+      - "空间智能与 VLA 模型融合"
+
+  - id: "hand-hardware"
+    name: "灵巧手硬件"
+    name_cn: "灵巧手硬件"
+    description: "机器人灵巧手、欠驱动手、仿人手设计"
+    maturity: "productizing"
+    signal_strength: 4
+    trend: "accelerating"
+    keywords:
+      - "dexterous hand"
+      - "robot hand"
+      - "anthropomorphic hand"
+      - "prosthetic hand"
+      - "robotic gripper"
+      - "multi-fingered hand"
+    key_players:
+      - "Shadow Robot (UK)"
+      - "因时机器人 (Instime)"
+      - "特斯拉 Optimus (自研)"
+      - "超维动力 (KAI, 单手 36 DoF)"
+      - "帕西尼感知 (Paxini)"
+      - "SCHUNK"
+    watch_signals:
+      - "灵巧手自由度突破（12DoF → 20+DoF）"
+      - "成本大幅下降（$100K → $10K）"
+      - "量产供应能力"
+
+  - id: "actuation"
+    name: "关节执行器"
+    name_cn: "关节执行器"
+    description: "执行器技术路线 — 旋转/直线/准直驱/SEA/液压"
+    maturity: "productizing"
+    signal_strength: 3
+    trend: "stable"
+    keywords:
+      - "robot actuator"
+      - "series elastic actuator"
+      - "quasi-direct drive"
+      - "harmonic drive"
+      - "planetary gear"
+      - "robot joint"
+      - "linear actuator"
+      - "rotary actuator"
+    key_players:
+      - "钛虎机器人 (Tihoo)"
+      - "因时机器人 (Instime)"
+      - "Harmonic Drive Systems"
+      - "Maxon"
+      - "Tesla (自研执行器)"
+      - "智元 (自研关节)"
+    watch_signals:
+      - "国产执行器性能对标/超越 Harmonic Drive"
+      - "成本下降路径"
+
+  - id: "edge-compute"
+    name: "边缘计算与芯片"
+    name_cn: "边缘计算 / 芯片"
+    description: "机器人端侧推理芯片、边缘计算平台"
+    maturity: "productizing"
+    signal_strength: 2
+    trend: "stable"
+    keywords:
+      - "edge computing robot"
+      - "Jetson Orin"
+      - "robot SoC"
+      - "onboard inference"
+      - "robot compute"
+      - "NPU robot"
+      - "TOPS"
+    key_players:
+      - "NVIDIA (Jetson Thor, Jetson Orin)"
+      - "Qualcomm (RB5, RB6)"
+      - "Intel (RealSense + compute)"
+      - "地平线"
+    watch_signals:
+      - "算力/功耗比突破"
+      - "国产替代方案成熟"
+
+# 聚合搜索模板（减少 WebSearch 调用）
+aggregate_queries:
+  en:
+    - "embodied AI foundation model VLA robot 2025"
+    - "dexterous manipulation humanoid robot breakthrough 2025"
+    - "humanoid locomotion bipedal walking 2025"
+    - "robot tactile sensor dexterous hand hardware 2025"
+  zh:
+    - "具身智能 基础模型 VLA 2025"
+    - "人形机器人 灵巧手 操作能力 2025"
+    - "机器人 灵巧手 执行器 传感器 国产 2025"
+    - "仿真 遥操作 模仿学习 机器人 2025"
