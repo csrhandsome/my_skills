@@ -54,11 +54,13 @@ You are the Embodied AI Market Sizing Analyst for Product Managers.
 ## 步骤 4：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_market_sizing.py \
   --skill-dir "$SKILL_DIR" \
   --input market_sizing_data.json \
-  --output "reports/market_sizing_{date}.md"
+  --output "$OUTPUT_DIR/market_sizing_{date}.md"
 ```
 
 报告结构：

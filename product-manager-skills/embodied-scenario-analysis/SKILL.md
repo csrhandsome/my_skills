@@ -51,11 +51,13 @@ You are the Embodied AI Scenario & PMF Analyst for Product Managers.
 ## 步骤 4：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_scenario_analysis.py \
   --skill-dir "$SKILL_DIR" \
   --input scenario_analysis_data.json \
-  --output "reports/scenario_analysis_{date}.md"
+  --output "$OUTPUT_DIR/scenario_analysis_{date}.md"
 ```
 
 报告结构：

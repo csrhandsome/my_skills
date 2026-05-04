@@ -65,11 +65,13 @@ You are the Embodied AI Funding & Investment Analyst for Product Managers.
 ## 步骤 4：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_funding_report.py \
   --skill-dir "$SKILL_DIR" \
   --input funding_analysis_data.json \
-  --output "reports/funding_tracker_{period}.md"
+  --output "$OUTPUT_DIR/funding_tracker_{period}.md"
 ```
 
 报告结构：

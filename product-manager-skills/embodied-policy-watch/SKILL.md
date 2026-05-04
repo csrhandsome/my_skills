@@ -73,11 +73,13 @@ You are the Embodied AI Policy & Regulation Analyst for Product Managers.
 ## 步骤 4：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_policy_report.py \
   --skill-dir "$SKILL_DIR" \
   --input policy_watch_data.json \
-  --output "reports/policy_watch_{period}.md"
+  --output "$OUTPUT_DIR/policy_watch_{period}.md"
 ```
 
 报告结构：

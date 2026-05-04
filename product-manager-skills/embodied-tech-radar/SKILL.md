@@ -114,11 +114,13 @@ You are the Embodied Technology Radar Analyst for Product Managers.
 将所有信号整理为结构化 JSON（`tech_radar_data.json`），然后生成报告：
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_radar.py \
   --skill-dir "$SKILL_DIR" \
   --input tech_radar_data.json \
-  --output "reports/tech_radar_{period}.md"
+  --output "$OUTPUT_DIR/tech_radar_{period}.md"
 ```
 
 JSON 格式：
@@ -168,7 +170,7 @@ JSON 格式：
 # 输出约定
 
 - 报告文件命名：`tech_radar_{YYYY-QQ}.md`
-- 存放目录：`$SKILL_DIR/reports/`
+- 存放目录：`$OBSIDIAN_VAULT_PATH/具身学习/News/`
 - 建议季度更新，月度也可
 
 # 重要规则

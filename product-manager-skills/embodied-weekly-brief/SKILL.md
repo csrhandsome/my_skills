@@ -122,11 +122,11 @@ You are the Weekly Embodied AI Industry Brief Writer for Product Managers.
 
 ```bash
 if [ -n "$OBSIDIAN_VAULT_PATH" ]; then
-  OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/vibe_research/10_Daily/Weekly_Briefs"
+  OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
   mkdir -p "$OUTPUT_DIR"
   OUTPUT_PATH="$OUTPUT_DIR/{YYYY-MM-DD}_具身智能周报.md"
 else
-  OUTPUT_PATH="$SKILL_DIR/reports/{YYYY-MM-DD}_具身智能周报.md"
+  OUTPUT_PATH="$SKILL_DIR/outputs/{YYYY-MM-DD}_具身智能周报.md"
 fi
 ```
 
@@ -144,8 +144,8 @@ uv run python scripts/generate_weekly_brief.py \
 
 在周报中链接到：
 
-1. **月度公司追踪报告**：`[[vibe_research/10_Daily/{当月}_具身公司动态追踪]]`（如果存在）
-2. **季度技术雷达**：`[[vibe_research/10_Daily/{当季}_技术雷达]]`（如果存在）
+1. **月度公司追踪报告**：`[[具身学习/News/company_tracker_{当月}]]`（如果存在）
+2. **季度技术雷达**：`[[具身学习/News/tech_radar_{当季}]]`（如果存在）
 3. **已有论文笔记**：如果技术信号涉及已有笔记的论文，用 wikilink 链接
 4. **关键词链接**：对文中出现的公司名/技术术语，如果 vault 中有对应笔记，建立 wikilink
 

@@ -67,13 +67,12 @@ search:
 # Obsidian 输出配置
 obsidian:
   vault_env_var: "OBSIDIAN_VAULT_PATH"
-  weekly_notes_folder: "vibe_research/10_Daily"
-  weekly_notes_subfolder: "Weekly_Briefs"
+  output_folder: "具身学习/News"
   filename_template: "{YYYY-MM-DD}_具身智能周报.md"
-  image_folder: "vibe_research/90_Assets/weekly_brief_images"
+  image_folder: "具身学习/News/assets"
   link_to_skills:
-    company_tracker: "[[vibe_research/10_Daily/{YYYY-MM}_具身公司动态追踪]]"
-    tech_radar: "[[vibe_research/10_Daily/{YYYY-QQ}_技术雷达]]"
+    company_tracker: "[[具身学习/News/company_tracker_{YYYY-MM}]]"
+    tech_radar: "[[具身学习/News/tech_radar_{YYYY-QQ}]]"
 
 # 图片策略
 image_strategy:

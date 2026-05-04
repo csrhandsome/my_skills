@@ -57,11 +57,13 @@ You are the Embodied AI Supply Chain Analyst for Product Managers.
 ## 步骤 4：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_supply_chain.py \
   --skill-dir "$SKILL_DIR" \
   --input supply_chain_data.json \
-  --output "reports/supply_chain_{date}.md"
+  --output "$OUTPUT_DIR/supply_chain_{date}.md"
 ```
 
 报告结构：
@@ -74,7 +76,7 @@ uv run python scripts/generate_supply_chain.py \
 
 # 输出约定
 
-- 报告路径：`reports/supply_chain_{YYYY-MM}.md`
+- 报告路径：`$OBSIDIAN_VAULT_PATH/具身学习/News/supply_chain_{YYYY-MM}.md`
 - 季度更新，重要变化随时更新
 
 # 与 company-tracker 的联动

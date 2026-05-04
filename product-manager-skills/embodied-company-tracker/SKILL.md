@@ -161,11 +161,13 @@ You are the Embodied Company Tracker for Product Managers.
 使用脚本生成最终报告：
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_report.py \
   --skill-dir "$SKILL_DIR" \
   --input events.json \
-  --output "reports/company_tracker_{period}.md"
+  --output "$OUTPUT_DIR/company_tracker_{period}.md"
 ```
 
 生成的报告将包含：
@@ -181,7 +183,7 @@ uv run python scripts/generate_report.py \
 # 输出约定
 
 - 报告文件命名：`company_tracker_{YYYY-MM}.md`
-- 存放目录：`$SKILL_DIR/reports/`
+- 存放目录：`$OBSIDIAN_VAULT_PATH/具身学习/News/`
 - 使用 Obsidian 兼容的 frontmatter
 - 中文报告，专业 PM 语气
 

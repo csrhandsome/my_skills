@@ -156,17 +156,19 @@ You are the Embodied Product Teardown Analyst for Product Managers.
 ## 步骤 5：生成报告
 
 ```bash
+OUTPUT_DIR="$OBSIDIAN_VAULT_PATH/具身学习/News"
+mkdir -p "$OUTPUT_DIR"
 cd "$SKILL_DIR"
 uv run python scripts/generate_teardown.py \
   --skill-dir "$SKILL_DIR" \
   --input teardown_data.json \
-  --output "reports/{product}_teardown_{date}.md"
+  --output "$OUTPUT_DIR/{product}_teardown_{date}.md"
 ```
 
 # 输出约定
 
-- 单产品拆解：`reports/{product_name}_teardown_{YYYY-MM}.md`
-- 多产品对比：`reports/{category}_comparison_{YYYY-MM}.md`
+- 单产品拆解：`$OBSIDIAN_VAULT_PATH/具身学习/News/{product_name}_teardown_{YYYY-MM}.md`
+- 多产品对比：`$OBSIDIAN_VAULT_PATH/具身学习/News/{category}_comparison_{YYYY-MM}.md`
 - 中文报告，专业 PM/Mech 语气
 
 # 重要规则
