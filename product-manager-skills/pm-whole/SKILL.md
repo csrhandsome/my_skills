@@ -1,5 +1,5 @@
 ---
-name: product-manager-skills
+name: pm-whole
 description: 具身智能产品经理技能包 — 9 大技能覆盖周报聚合、公司追踪、技术雷达、竞品拆解、产业链、市场估算、场景分析、投融资、政策法规
 allowed-tools: Read, Bash, WebSearch, WebFetch
 ---
