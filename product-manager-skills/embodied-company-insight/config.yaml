@@ -1,0 +1,252 @@
+---
+# 具身智能公司深度洞察配置
+# 四维度分析框架：团队 / 融资 / 业务模式 / 产品技术
+
+metadata:
+  version: "1.0"
+  last_updated: "2026-05-07"
+
+# 分析维度定义
+analysis_dimensions:
+  - id: team
+    name_cn: "核心团队"
+    weight: 0.25
+    sub_items:
+      - "创始人/CEO 背景"
+      - "核心技术负责人"
+      - "商务/产品负责人"
+      - "顾问/关键投资人"
+      - "团队规模与招聘方向"
+      - "团队基因判断（学术/大厂/连续创业）"
+
+  - id: funding
+    name_cn: "融资与估值"
+    weight: 0.25
+    sub_items:
+      - "融资时间线（轮次/金额/估值/投资方）"
+      - "融资节奏分析（加速/平稳/放缓）"
+      - "估值曲线与对标"
+      - "投资方结构（战投/VC/政府基金）"
+      - "资金用途与烧钱速度"
+
+  - id: business_model
+    name_cn: "业务模式"
+    weight: 0.25
+    sub_items:
+      - "收入模式（硬件/SaaS/解决方案/RaaS）"
+      - "目标客户画像"
+      - "市场进入策略"
+      - "商业化阶段"
+      - "定价策略"
+
+  - id: product_tech
+    name_cn: "产品与技术"
+    weight: 0.25
+    sub_items:
+      - "产品矩阵"
+      - "核心技术栈（自研 vs 外购）"
+      - "技术差异化"
+      - "知识产权/专利"
+      - "技术路线判断"
+
+# 团队关键角色
+team_roles:
+  - id: founder_ceo
+    name_cn: "创始人/CEO"
+    importance: critical
+  - id: tech_lead
+    name_cn: "技术负责人（CTO/首席科学家）"
+    importance: critical
+  - id: biz_lead
+    name_cn: "商务/产品负责人"
+    importance: high
+  - id: key_advisor
+    name_cn: "关键顾问/投资人"
+    importance: medium
+
+# 融资阶段定义
+funding_stages:
+  - name: "种子轮"
+    range: "<$5M"
+    typical_valuation: "未披露"
+  - name: "天使轮"
+    range: "$1M-$10M"
+    typical_valuation: "$10M-$50M"
+  - name: "A 轮"
+    range: "$10M-$50M"
+    typical_valuation: "$50M-$200M"
+  - name: "B 轮"
+    range: "$50M-$200M"
+    typical_valuation: "$200M-$1B"
+  - name: "C 轮+"
+    range: ">$200M"
+    typical_valuation: ">$1B"
+  - name: "Pre-IPO"
+    range: ">$500M"
+    typical_valuation: ">$2B"
+
+# 商业模式分类
+business_models:
+  - id: hardware_sales
+    name_cn: "硬件销售"
+    description: "直接销售机器人硬件，单台 ASP ¥XX 万"
+  - id: saas_platform
+    name_cn: "SaaS/平台"
+    description: "软件平台订阅、开发工具、云服务"
+  - id: solution
+    name_cn: "解决方案"
+    description: "软硬件一体解决方案，按项目交付"
+  - id: raas
+    name_cn: "RaaS（Robot-as-a-Service）"
+    description: "按使用量/时长付费，不卖硬件"
+  - id: components
+    name_cn: "核心零部件"
+    description: "只做上游零部件（关节/传感器/芯片）"
+
+# 技术栈分层
+tech_stack:
+  - layer: "感知 (Perception)"
+    components:
+      - "视觉（RGB-D/事件相机/3D）"
+      - "触觉（阵列触觉/力矩传感）"
+      - "力觉/本体感觉"
+      - "多模态融合"
+    make_or_buy: "自研为主，部分传感器外购"
+
+  - layer: "决策 (Planning)"
+    components:
+      - "任务规划（LLM/VLM 驱动）"
+      - "运动规划（MPC/RL）"
+      - "灵巧操作策略"
+      - "人机交互/安全"
+    make_or_buy: "自研为主"
+
+  - layer: "执行 (Actuation)"
+    components:
+      - "关节执行器（电机/减速器/编码器）"
+      - "灵巧手"
+      - "力控/阻抗控制"
+      - "全身协调控制"
+    make_or_buy: "自研+外购，执行器是关键卡脖子环节"
+
+  - layer: "本体 (Hardware)"
+    components:
+      - "结构设计（自由度/关节数）"
+      - "电池/电源管理"
+      - "散热/可靠性"
+      - "整机 BOM 成本"
+    make_or_buy: "整机设计自研，零部件外购"
+
+  - layer: "数据 (Data/Sim)"
+    components:
+      - "仿真平台"
+      - "遥操作数据采集"
+      - "真实世界数据飞轮"
+      - "基础模型训练"
+    make_or_buy: "自研，少数用 NVIDIA Isaac"
+
+# 预置公司列表（可从 company-tracker 中获取更详细列表）
+companies:
+  - name: "Figure AI"
+    chinese_name: ""
+    region: "US"
+    founded: 2022
+    headquarters: "Sunnyvale, CA"
+    keywords: ["Figure AI", "Figure 02", "Figure 03"]
+
+  - name: "Tesla Optimus"
+    chinese_name: "特斯拉 Optmus"
+    region: "US"
+    founded: 2021
+    headquarters: "Austin, TX"
+    keywords: ["Tesla Optimus", "Optimus Gen", "Tesla Bot"]
+
+  - name: "宇树科技"
+    chinese_name: "Unitree"
+    region: "CN"
+    founded: 2016
+    headquarters: "杭州"
+    keywords: ["宇树", "Unitree", "H1", "G1"]
+
+  - name: "智元机器人"
+    chinese_name: "AGIBOT"
+    region: "CN"
+    founded: 2023
+    headquarters: "上海"
+    keywords: ["智元", "AGIBOT", "远征", "A2"]
+
+  - name: "1X Technologies"
+    chinese_name: ""
+    region: "Norway/US"
+    founded: 2014
+    headquarters: "Moss, Norway / San Francisco"
+    keywords: ["1X Technologies", "1X NEO", "EVE"]
+
+  - name: "Boston Dynamics"
+    chinese_name: "波士顿动力"
+    region: "US"
+    founded: 1992
+    headquarters: "Waltham, MA"
+    keywords: ["Boston Dynamics", "Atlas", "Spot"]
+
+  - name: "Agility Robotics"
+    chinese_name: ""
+    region: "US"
+    founded: 2015
+    headquarters: "Corvallis, OR"
+    keywords: ["Agility Robotics", "Digit"]
+
+  - name: "傅利叶智能"
+    chinese_name: "Fourier"
+    region: "CN"
+    founded: 2015
+    headquarters: "上海"
+    keywords: ["傅利叶", "Fourier", "GR-2"]
+
+  - name: "星海图"
+    chinese_name: "XingHaiTu"
+    region: "CN"
+    founded: 2022
+    headquarters: "杭州"
+    keywords: ["星海图", "XingHaiTu"]
+
+  - name: "Generalist"
+    chinese_name: ""
+    region: "US"
+    founded: 2023
+    headquarters: "US"
+    keywords: ["Generalist", "GEN-1"]
+
+# 搜索 query 模板
+search_templates:
+  team:
+    en: |
+      "{company_en} founder ceo cto team background ex-Google ex-Tesla"
+      "{company_en} key people hires leadership"
+    zh: |
+      "{company_zh} 创始人 团队 背景 经历 前"
+      "{company_zh} 核心团队 招聘 规模"
+
+  funding:
+    en: |
+      "{company_en} funding round series valuation Crunchbase"
+      "{company_en} investors venture capital funding history"
+    zh: |
+      "{company_zh} 融资 估值 投资方 轮次"
+      "{company_zh} 融资历程 股东 估值变化"
+
+  business:
+    en: |
+      "{company_en} business model revenue pricing commercialization"
+      "{company_en} go-to-market strategy customers deployment"
+    zh: |
+      "{company_zh} 商业模式 商业化 定价 客户"
+      "{company_zh} 市场策略 落地 收入"
+
+  product_tech:
+    en: |
+      "{company_en} product specifications technology stack"
+      "{company_en} core technology differentiation patent"
+    zh: |
+      "{company_zh} 产品线 核心技术 差异化"
+      "{company_zh} 技术路线 专利 自研"

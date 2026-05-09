@@ -1,0 +1,60 @@
+language: "zh"
+research_domains:
+  vla:
+    name: "视觉-语言-动作模型"
+    priority: 1.0
+    keywords:
+      - "vision-language-action"
+      - "VLA"
+      - "robot foundation model"
+      - "diffusion policy"
+      - "action chunking"
+      - "autoregressive action"
+    arxiv_categories:
+      - "cs.RO"
+      - "cs.AI"
+      - "cs.CV"
+      - "cs.LG"
+  world_models:
+    name: "机器人世界模型"
+    priority: 0.9
+    keywords:
+      - "world model"
+      - "video prediction"
+      - "model-based RL"
+      - "generative world model"
+      - "JEPA"
+      - "video generation"
+    arxiv_categories:
+      - "cs.RO"
+      - "cs.LG"
+      - "cs.AI"
+      - "cs.CV"
+  robot_learning:
+    name: "机器人学习"
+    priority: 0.8
+    keywords:
+      - "imitation learning"
+      - "behavior cloning"
+      - "reinforcement learning"
+      - "sim-to-real"
+      - "dexterous manipulation"
+      - "humanoid robot"
+      - "teleoperation"
+    arxiv_categories:
+      - "cs.RO"
+      - "cs.LG"
+      - "cs.AI"
+  embodied_reasoning:
+    name: "具身推理与规划"
+    priority: 0.7
+    keywords:
+      - "embodied reasoning"
+      - "task planning"
+      - "generalization"
+      - "zero-shot transfer"
+      - "compositional generalization"
+    arxiv_categories:
+      - "cs.RO"
+      - "cs.AI"
+      - "cs.CL"

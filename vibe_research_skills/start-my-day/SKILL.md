@@ -28,13 +28,30 @@ START_MY_DAY_SKILL_DIR="[directory containing this SKILL.md]"
 - 禁止裸用：`python scripts/search_arxiv.py`、`uv run python scripts/scan_existing_notes.py`
 - 如果同时存在源码副本 `vibe_research_skills/start-my-day/` 和安装副本 `/Users/three/.cc-switch/skills/start-my-day/`，使用本次实际加载的 skill 副本；修改源码后需要同步到安装副本才会生效。
 
-## 配置与语言
+## 内置 Preference 预设
 
-Vault 来自 `$OBSIDIAN_VAULT_PATH`。如果当前 shell 未设置，可尝试读取 `~/.zshrc` / `~/.bash_profile`。
+Skill 内置多个研究方向偏好配置，存放在 skill 目录的 `preferences/` 下：
 
-配置文件：`$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md`
+| 预设文件 | 研究方向 | 来源 |
+|---|---|---|
+| `preferences/hci-biofeedback.yaml` | 生理计算/生物反馈 + 情感计算 + 具身交互 | 用户自定义 (vibe_research_HCI) |
+| `preferences/embodied-ai.yaml` | VLA 模型 + 世界模型 + 机器人学习 + 具身推理 | 用户自定义 (vibe_research_embody) |
+| `preferences/robotics.yaml` | 机器人与具身智能 + 强化学习 | 内置通用预设 |
+| `preferences/hci.yaml` | 人机交互 + 可访问性设计 | 内置通用预设 |
+| `preferences/multimodal.yaml` | 多模态技术 + 视频理解 | 内置通用预设 |
+| `preferences/general-ai.yaml` | 大语言模型 + 机器学习 + 推理与规划 | 内置通用预设 |
 
-- 如果配置不存在，先询问用户研究方向，创建最小可用 `preference.md`，然后继续。
+启动时**优先让用户选择**一个内置预设，或选择使用自定义配置。不要默认使用任意一个预设。
+
+### 自定义 Preference（可选）
+
+用户也可以在 Vault 中维护自己的 preference：
+
+```
+$OBSIDIAN_VAULT_PATH/vibe_research/research_preference/preference.md
+```
+
+- 如果用户选择"自定义"且配置不存在，先询问研究方向，创建最小可用 `preference.md`，然后继续。
 - `language: "zh"` 输出中文，`language: "en"` 输出英文；默认中文。
 - 搜索分类优先从 `research_domains.*.arxiv_categories` 聚合；配置缺失或格式不合法时，脚本应报错，不要静默回退到无关默认领域。
 
@@ -92,7 +109,6 @@ research_domains:
 ```bash
 START_MY_DAY_SKILL_DIR="[directory containing this SKILL.md]"
 VAULT_ROOT="$OBSIDIAN_VAULT_PATH"
-PREFERENCE_FILE="$VAULT_ROOT/vibe_research/research_preference/preference.md"
 RUN_DIR="/tmp/start_my_day_$(date +%Y%m%d)"
 mkdir -p "$RUN_DIR"
 DAILY_DIR="$VAULT_ROOT/vibe_research/10_Daily"
@@ -103,6 +119,28 @@ else
   DAILY_NOTE="$DAILY_DIR/$(date +%Y-%m-%d)_论文推荐.md"
 fi
 
+# ========== 选择 Preference ==========
+# 列出内置预设，让用户选择；也可选择使用 Vault 中的自定义配置
+PREFERENCES_DIR="$START_MY_DAY_SKILL_DIR/preferences"
+CUSTOM_PREFERENCE="$VAULT_ROOT/vibe_research/research_preference/preference.md"
+
+# 这里应由 agent 通过 AskUserQuestion 让用户选择，示例：
+#   1) robotics.yaml      - 机器人与具身智能
+#   2) hci.yaml           - 人机交互
+#   3) multimodal.yaml    - 多模态技术
+#   4) general-ai.yaml    - 通用 AI/LLM
+#   5) 自定义 (使用 Vault 中的 preference.md)
+#
+# 选择后设置 SELECTED_PRESET 变量，例如：
+# SELECTED_PRESET="robotics"
+
+if [ "$SELECTED_PRESET" = "custom" ]; then
+  PREFERENCE_FILE="$CUSTOM_PREFERENCE"
+else
+  PREFERENCE_FILE="$PREFERENCES_DIR/${SELECTED_PRESET}.yaml"
+fi
+
+# ========== 执行工作流 ==========
 uv run python "$START_MY_DAY_SKILL_DIR/scripts/scan_existing_notes.py" \
   --vault "$VAULT_ROOT" \
   --output "$RUN_DIR/existing_notes_index.json"
@@ -127,14 +165,15 @@ python "$START_MY_DAY_SKILL_DIR/scripts/search_arxiv.py" --config "$PREFERENCE_F
 
 ## 工作流程
 
-1. **解析日期**：使用当前日期作为推荐笔记日期，可通过搜索脚本 `--target-date YYYY-MM-DD` 复现历史日期。
-2. **读取偏好**：加载关键词、研究领域、arXiv 分类、语言设置。
-3. **扫描已有笔记**：执行 `scan_existing_notes.py`，构建标题、arXiv ID、alias、关键词索引，用于排重和自动链接。
-4. **搜索论文**：执行 `search_arxiv.py`，搜索最近 30 天和过去一年热门/高相关论文；默认 top 10。
-5. **读取结果**：使用 `arxiv_filtered.json` 中的 `top_papers` / 推荐结果，不要重新手工搜索一套结果。
-6. **生成 daily 推荐笔记**：写入 `$OBSIDIAN_VAULT_PATH/vibe_research/10_Daily/YYYY-MM-DD_论文推荐.md` 或英文后缀 `YYYY-MM-DD_paper-recommendations.md`。
-7. **关键词链接**：可选执行 `link_keywords.py`，用已有笔记索引给推荐笔记自动加 `[[内部链接]]`。
-8. **交付摘要**：告诉用户生成路径、推荐数量、最高优先级论文和下一步可运行的 `/paper-analyze`。
+1. **选择偏好**：列出 `preferences/` 下的内置预设让用户选择，或选择"自定义"使用 Vault 中的 `preference.md`。
+2. **解析日期**：使用当前日期作为推荐笔记日期，可通过搜索脚本 `--target-date YYYY-MM-DD` 复现历史日期。
+3. **读取偏好**：加载选定预设或自定义配置中的关键词、研究领域、arXiv 分类、语言设置。
+4. **扫描已有笔记**：执行 `scan_existing_notes.py`，构建标题、arXiv ID、alias、关键词索引，用于排重和自动链接。
+5. **搜索论文**：执行 `search_arxiv.py`，搜索最近 30 天和过去一年热门/高相关论文；默认 top 10。
+6. **读取结果**：使用 `arxiv_filtered.json` 中的 `top_papers` / 推荐结果，不要重新手工搜索一套结果。
+7. **生成 daily 推荐笔记**：写入 `$OBSIDIAN_VAULT_PATH/vibe_research/10_Daily/YYYY-MM-DD_论文推荐.md` 或英文后缀 `YYYY-MM-DD_paper-recommendations.md`。
+8. **关键词链接**：可选执行 `link_keywords.py`，用已有笔记索引给推荐笔记自动加 `[[内部链接]]`。
+9. **交付摘要**：告诉用户生成路径、推荐数量、最高优先级论文和下一步可运行的 `/paper-analyze`。
 
 ## 推荐笔记结构
 

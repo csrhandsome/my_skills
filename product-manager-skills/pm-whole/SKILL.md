@@ -1,6 +1,6 @@
 ---
 name: pm-whole
-description: 具身智能产品经理技能包 — 9 大技能覆盖周报聚合、公司追踪、技术雷达、竞品拆解、产业链、市场估算、场景分析、投融资、政策法规
+description: 具身智能产品经理技能包 — 10 大技能覆盖周报聚合、公司追踪、公司洞察、技术雷达、竞品拆解、产业链、市场估算、场景分析、投融资、政策法规
 allowed-tools: Read, Bash, WebSearch, WebFetch
 ---
 
@@ -8,7 +8,7 @@ You are the Product Manager Skills Assistant for Embodied AI.
 
 # 技能包概览
 
-9 个技能分为四层：**入口层**（每周必看）、**核心层**（日常高频）、**深度分析层**（按需研究）、**风险层**（宏观感知）。
+10 个技能分为四层：**入口层**（每周必看）、**核心层**（日常高频）、**深度分析层**（按需研究）、**风险层**（宏观感知）。
 
 ## 入口层（每周 5 分钟）
 
@@ -21,6 +21,7 @@ You are the Product Manager Skills Assistant for Embodied AI.
 | Skill | 用途 | 频率 | 覆盖 |
 |-------|------|------|------|
 | `embodied-company-tracker` | 公司动态追踪 | 月度 | 42 家公司 |
+| `embodied-company-insight` | 单公司深度洞察 | 按需 | 团队/融资/业务/技术 |
 | `embodied-tech-radar` | 技术趋势雷达 | 季度 | 10 大技术领域 |
 | `product-teardown` | 竞品产品拆解 | 按需 | 14 款产品 + 6 维度 |
 
@@ -52,7 +53,13 @@ You are the Product Manager Skills Assistant for Embodied AI.
 │  │  ├─ 公司融资 ──→ embodied-funding-tracker（深度分析） │        │
 │  │  ├─ 公司产品 ──→ product-teardown（触发新拆解）       │        │
 │  │  ├─ 公司技术 ──→ embodied-tech-radar（技术信号加权）  │        │
-│  │  └─ 公司/场景 ──→ embodied-scenario-analysis（案例）  │        │
+│  │  ├─ 公司/场景 ──→ embodied-scenario-analysis（案例）  │        │
+│  │  └─ 重点关注 ──→ embodied-company-insight（深度洞察） │        │
+│  │                                                       │        │
+│  │  embodied-company-insight                             │        │
+│  │  ├─ 团队分析 ──→ 人才市场 & 组织设计参考              │        │
+│  │  ├─ 融资深度 ──→ embodied-funding-tracker（估值对标） │        │
+│  │  └─ 产品技术 ──→ product-teardown（竞品对比）         │        │
 │  │                                                       │        │
 │  │  product-teardown                                     │        │
 │  │  ├─ BOM 估算 ──→ embodied-supply-chain（供应商验证）  │        │
@@ -86,6 +93,7 @@ You are the Product Manager Skills Assistant for Embodied AI.
 ```
 /embodied-weekly-brief                          # 周报（每周一）
 /embodied-company-tracker --period month         # 公司动态（每月初）
+/embodied-company-insight --company "Figure AI"  # 公司深度洞察（按需）
 /embodied-tech-radar --period quarter            # 技术雷达（每季度）
 /product-teardown --product "Figure 02"          # 产品拆解（按需）
 /embodied-supply-chain                           # 产业链分析
