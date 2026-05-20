@@ -14,6 +14,7 @@ Use this skill when:
 
 - Treat the directory containing this `SKILL.md` as `AI_SCIENTIFIC_DRAW_DIR`.
 - Read configuration from `"$AI_SCIENTIFIC_DRAW_DIR/config.json"`.
+- If `config.json` is missing or the user provides a new API key, create it with `"$AI_SCIENTIFIC_DRAW_DIR/scripts/create_config.py"` instead of asking the user to hand-write JSON.
 - Generate images with `"$AI_SCIENTIFIC_DRAW_DIR/scripts/generate_image.py"`.
 - Save all final outputs to `"$AI_SCIENTIFIC_DRAW_DIR/img/"`.
 - Do not write final images to the repo root or other temporary folders unless the user explicitly asks for that.
@@ -61,6 +62,34 @@ For publication-style results:
 - Prefer high legibility over decoration.
 - Avoid fake UI chrome, glossy effects, 3D gimmicks, and dense text walls.
 
+## 3.1 Prefer visual token notation over dense text
+
+For model architecture figures, keep labels compact and explain tensor roles visually:
+- Use short module labels such as `Whisper`, `Audio Resampler`, `VLM`, and `Action Expert` instead of long descriptive labels when the surrounding flow makes the role clear.
+- Represent queries, keys/values, embeddings, and output tokens as small colored square token rows with minimal labels like `Q`, `K/V`, `audio tokens`, or no label when the legend is sufficient.
+- Avoid writing formulas such as `Q = ...` and `K,V = ...` inside the figure unless the user explicitly asks for equations.
+- Prefer arrows from token rows into attention blocks to show which tokens act as queries and which feature tokens act as keys/values.
+- For shared or frozen modules, use a short tag such as `shared + frozen` or a snowflake icon rather than repeated explanatory text.
+- When a block is visually obvious, use an icon or symbolic illustration, for example a waveform icon for audio, token grids for features, and compact square rows for learned queries.
+- Keep text to module names, lane names, and essential output labels. Do not fill blocks with explanatory paragraphs.
+
+## 3.2 Example recipe for VLA and robot foundation model figures
+
+The following is a reusable example pattern for vision-language-action, robot foundation model, and embodied AI architecture diagrams. Treat it as a style reference, not a fixed template for every figure.
+
+For this example pattern, use these conventions unless the user asks otherwise:
+- Separate the figure into modality encoders/adapters, prefix or token assembly, backbone fusion, and action generation. Make the first fusion point visually explicit.
+- Draw modality-specific streams independently until the implementation actually fuses them. Do not invent feature concatenation, shared attention, or early fusion that is not in the described method.
+- Show shared weights and frozen/pre-trained modules with compact visual marks such as a snowflake, pale blue/gray fill, or short tags like `shared`, `frozen`, and `pre-trained`.
+- Represent large VLM or policy backbones as long pale-blue token bands with small rounded token slots. Use architecture-level labels such as `VLM`, `Policy`, or `Backbone` when the exact model name is secondary.
+- Put model composition details in small pale gray text inside or near the backbone block, for example `pre-trained: PaliGemma + Gemma`, `vision encoder + LLM`, or `SigLIP + Gemma`.
+- Show concrete natural-language task instructions as short rounded text chips when useful, for example `"Place the object into the basket"`. Keep them as examples, not explanatory paragraphs.
+- Use colored token rows for prefix inputs such as language tokens, image tokens, state tokens, proprioception tokens, audio tokens, memory tokens, or goal tokens. A small legend is better than repeated labels.
+- For learned adapters/resamplers/projectors, show input feature tokens, optional query tokens, a compact attention/projector icon, and output tokens. Avoid equations unless requested.
+- For diffusion or flow-matching action modules, emphasize iterative denoising/sampling visually: show noise tokens, intermediate action/noise states, repeated dashed or curved arrows, and final action tokens.
+- Mark action heads or action experts as frozen/pre-trained, trainable, or adapted only when the user specifies the training state. If frozen, use the same visual language as other frozen modules.
+- Output actions can be compact numeric chips, trajectory icons, robot-control icons, or planning/control/state groups. Keep outputs secondary to the architecture flow.
+
 ## 4. Build the generation prompt
 
 The prompt should contain:
@@ -83,6 +112,12 @@ Flow: <how information moves between blocks>.
 Emphasis: <core module or novelty>.
 Style: white background, vector-like scientific illustration, flat design, publication-ready, clear labels, consistent arrows, restrained blue/teal/orange palette, no photorealism, no mock UI, no extra decoration.
 Aspect ratio: <ratio>.
+```
+
+For low-text architecture diagrams, add:
+
+```text
+Use visual token notation: show Q and K/V with colored square token rows and arrows, not formulas or long sentences. Keep module labels short.
 ```
 
 ## 5. Generate into `img/`
