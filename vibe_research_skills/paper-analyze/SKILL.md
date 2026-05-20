@@ -40,24 +40,29 @@ LANGUAGE=$(grep -E "^\s*language:" "$OBSIDIAN_VAULT_PATH/vibe_research/research_
 
 ## 目录约定
 
-### Daily 工作目录
+### 输入
 
-入口脚本会创建：`vibe_research/10_Daily/YYYY-MM-DD_论文标题`
+用户必须提供：
+- 论文 PDF 的**绝对路径**（或 arXiv ID，脚本会自动下载）
+- `--short-name`：用户指定的论文简写名称（必填），用作输出文件夹名
 
-- `daily_report_path`：最终分析报告工作副本，默认继续编辑这里。
-- `daily_pdf_path`：仅当输入是本地 PDF 时移动 PDF 到 daily，移走原位置同名 PDF；daily 文件夹名优先使用论文标题，不要直接照搬 PDF 文件名。
-- **daily 目录只保留 PDF 和报告，不存图片。**
-- 报告图片用 Obsidian wikilink 引用 Research 目录图片，如：`![[filename.png|800]]`。
+### 输出目录
 
-### Research 归档目录
+所有产物放在 PDF 所在目录下的 `{short_name}/` 文件夹中：
 
-长期资料保存在：`vibe_research/20_Research/Papers/[domain]/[paper_title]/`
+```
+{pdf_parent_dir}/{short_name}/
+  {short_name}.md              ← 论文笔记
+  {short_name}.pdf             ← PDF 副本
+  images/                      ← 提取的关键图 + index.md
+  mineru/                      ← MinerU 完整原始归档
+    {pdf_stem}.md
+    images/
+```
 
-- `note_path`：归档论文笔记。
-- `images/`：由 `extract-paper-images` 生成的筛选/可引用图片和 `index.md`。
-- `mineru/`：MinerU 完整原始归档。
-  - `mineru/[pdf_stem].md`
-  - `mineru/images/`
+- 报告图片用 Obsidian wikilink 引用同文件夹下的图片，如：`![[filename.png|800]]`。
+- 不再有 `vibe_research/`、`20_Research/`、`10_Daily/` 等固定中间层级。
+- 不再有 daily 工作区副本；所有产物集中在一个文件夹内。
 
 ## 快速执行
 
@@ -71,6 +76,7 @@ uv run python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
   --title "$TITLE" \
   --authors "$AUTHORS" \
   --domain "$DOMAIN" \
+  --short-name "$SHORT_NAME" \
   --language "$LANGUAGE"
 ```
 
@@ -84,6 +90,7 @@ python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
   --title "$TITLE" \
   --authors "$AUTHORS" \
   --domain "$DOMAIN" \
+  --short-name "$SHORT_NAME" \
   --language "$LANGUAGE"
 ```
 

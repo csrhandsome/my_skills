@@ -177,6 +177,8 @@ def should_exclude_note(md_file: Path, papers_dir: Path) -> bool:
 
     if 'images' in parts_lower:
         return True
+    if 'mineru' in parts_lower:
+        return True
     if name_lower == 'index.md':
         return True
     if name_lower.startswith('tmp_') or name_lower.startswith('temp_'):

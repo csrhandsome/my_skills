@@ -325,6 +325,7 @@ def main():
     parser.add_argument("--title", default="", help="论文标题")
     parser.add_argument("--authors", default="", help="论文作者")
     parser.add_argument("--domain", default="", help="论文领域")
+    parser.add_argument("--short-name", default="", help="用户指定的论文简写名称，用作文件夹名")
     parser.add_argument("--vault", default=None, help="Obsidian vault 路径")
     parser.add_argument("--language", default=None, choices=["zh", "en"], help="输出语言")
     parser.add_argument("--mineru-language", default="en", help="MinerU 文档语言参数")
@@ -345,9 +346,10 @@ def main():
         elif not paper_id:
             paper_id = normalize_paper_id(paper_input)
 
-    vault_root = get_vault_path(args.vault)
-    language = detect_language(vault_root, args.language)
-    notes_root = vault_root / "vibe_research" / "20_Research" / "Papers"
+    vault_root = get_vault_path(args.vault) if args.vault or os.environ.get("OBSIDIAN_VAULT_PATH") else None
+    language = args.language or "zh"
+    if vault_root:
+        language = detect_language(vault_root, args.language)
     work_dir = Path(args.work_dir).expanduser().resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
     local_pdf_input = bool(args.pdf_path)
@@ -367,6 +369,9 @@ def main():
     title = args.title.strip() or pdf_path.stem or paper_id or ("未命名论文" if language == "zh" else "Untitled Paper")
     authors = args.authors.strip() or ("待定作者" if language == "zh" else "Unknown Authors")
     domain = args.domain.strip() or ("其他" if language == "zh" else "Other")
+    short_name = args.short_name.strip()
+    if not short_name:
+        raise RuntimeError("必须通过 --short-name 指定论文简写名称（用作文件夹名）。")
 
     extract_dir = run_root / "mineru_extract"
     run_command(
@@ -391,10 +396,12 @@ def main():
     if not args.title.strip():
         title = infer_title_from_markdown(markdown_path) or title
 
-    existing_note = find_existing_note(notes_root, paper_id, title)
-    note_path = existing_note
+    # 输出目录：PDF 所在目录下的 {short_name}/ 文件夹
+    output_dir = pdf_path.parent / short_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    note_path = output_dir / f"{short_name}.md"
 
-    if note_path is None:
+    if not note_path.exists():
         run_command(
             "generate_note",
             [
@@ -408,19 +415,20 @@ def main():
                 authors,
                 "--domain",
                 domain,
-                "--vault",
-                str(vault_root),
+                "--short-name",
+                short_name,
+                "--output-dir",
+                str(output_dir),
                 "--language",
                 language,
             ],
         )
-        note_path = notes_root / domain / f"{sanitize_title(title)}.md"
         if not note_path.exists():
             raise RuntimeError(f"笔记生成后未找到输出文件: {note_path}")
     else:
         logger.info("复用已有笔记: %s", note_path)
 
-    note_root = note_path.with_suffix("")
+    note_root = output_dir
     images_dir = note_root / "images"
     index_path = images_dir / "index.md"
     image_input = paper_id or str(pdf_path)
@@ -454,8 +462,8 @@ def main():
     if not index_path.exists():
         raise RuntimeError(f"图片索引未生成: {index_path}")
 
-    graph_path = vault_root / "vibe_research" / "20_Research" / "PaperGraph" / "graph_data.json"
-    if not args.skip_graph:
+    if not args.skip_graph and vault_root:
+        graph_path = vault_root / "vibe_research" / "20_Research" / "PaperGraph" / "graph_data.json"
         graph_command = [
             sys.executable,
             str(UPDATE_GRAPH_SCRIPT),
@@ -475,16 +483,8 @@ def main():
         if args.related:
             graph_command.extend(["--related", *args.related])
         run_command("update_graph", graph_command)
-        if not graph_path.exists():
-            raise RuntimeError(f"图谱文件未生成: {graph_path}")
 
-    daily_outputs = prepare_daily_workspace(
-        vault_root=vault_root,
-        title=title,
-        note_path=note_path,
-        pdf_path=pdf_path,
-        keep_local_pdf=local_pdf_input,
-    )
+    research_pdf_path = copy_file_to(pdf_path, note_root / f"{short_name}.pdf")
 
     mineru_archive = archive_mineru_output(
         note_root=note_root,
@@ -500,42 +500,36 @@ def main():
         "search_policy": "prefer_local_allow_external" if local_pdf_input else "allow_external_if_needed",
         "language": language,
         "domain": domain,
+        "short_name": short_name,
         "title": title,
         "authors": authors,
         "markdown_path": str(markdown_path),
         "note_path": str(note_path),
+        "research_pdf_path": str(research_pdf_path),
+        "output_dir": str(output_dir),
         "images_dir": str(images_dir),
         "index_path": str(index_path),
         "image_count": image_count,
-        "graph_path": str(graph_path) if graph_path.exists() else "",
-        "daily_dir": str(daily_outputs["daily_dir"]),
-        "daily_report_path": str(daily_outputs["daily_report_path"]),
-        "daily_pdf_path": str(daily_outputs["daily_pdf_path"]) if daily_outputs["daily_pdf_path"] else "",
         "mineru_archive_dir": str(mineru_archive["mineru_archive_dir"]),
         "mineru_text_path": str(mineru_archive["mineru_text_path"]),
         "mineru_images_dir": str(mineru_archive["mineru_images_dir"]) if mineru_archive["mineru_images_dir"] else "",
     }
     manifest_path = run_root / "analysis_run.json"
     write_manifest(manifest_path, manifest)
-    daily_manifest_path = daily_outputs["daily_dir"] / "analysis_run.json"
-    write_manifest(daily_manifest_path, manifest)
+    output_manifest_path = output_dir / "analysis_run.json"
+    write_manifest(output_manifest_path, manifest)
 
     print(f"analysis_run.json: {manifest_path}")
+    print(f"output_dir: {output_dir}")
     print(f"markdown_path: {markdown_path}")
     print(f"note_path: {note_path}")
+    print(f"research_pdf_path: {research_pdf_path}")
     print(f"index_path: {index_path}")
     print(f"image_count: {image_count}")
-    print(f"daily_dir: {daily_outputs['daily_dir']}")
-    print(f"daily_report_path: {daily_outputs['daily_report_path']}")
-    if daily_outputs["daily_pdf_path"]:
-        print(f"daily_pdf_path: {daily_outputs['daily_pdf_path']}")
-    print(f"daily_manifest_path: {daily_manifest_path}")
     print(f"mineru_archive_dir: {mineru_archive['mineru_archive_dir']}")
     print(f"mineru_text_path: {mineru_archive['mineru_text_path']}")
     if mineru_archive["mineru_images_dir"]:
         print(f"mineru_images_dir: {mineru_archive['mineru_images_dir']}")
-    if not args.skip_graph:
-        print(f"graph_path: {graph_path}")
 
 
 if __name__ == "__main__":
