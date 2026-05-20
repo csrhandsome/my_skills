@@ -1,0 +1,30 @@
+language: "zh"
+research_domains:
+  hci:
+    name: "人机交互"
+    priority: 1.0
+    keywords:
+      - "human-computer interaction"
+      - "user interface"
+      - "interaction design"
+      - "user experience"
+      - "multimodal interaction"
+      - "tangible interface"
+      - "ambient intelligence"
+    arxiv_categories:
+      - "cs.HC"
+      - "cs.CY"
+      - "cs.AI"
+      - "cs.CV"
+  accessibility:
+    name: "可访问性与包容性设计"
+    priority: 0.7
+    keywords:
+      - "accessibility"
+      - "assistive technology"
+      - "inclusive design"
+      - "aging"
+      - "disability"
+    arxiv_categories:
+      - "cs.HC"
+      - "cs.CY"

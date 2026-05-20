@@ -1,0 +1,43 @@
+language: "zh"
+research_domains:
+  large_language_models:
+    name: "大语言模型"
+    priority: 1.0
+    keywords:
+      - "large language model"
+      - "LLM"
+      - "transformer"
+      - "prompt engineering"
+      - "chain-of-thought"
+      - "in-context learning"
+      - "fine-tuning"
+    arxiv_categories:
+      - "cs.CL"
+      - "cs.AI"
+      - "cs.LG"
+  machine_learning:
+    name: "机器学习"
+    priority: 0.9
+    keywords:
+      - "deep learning"
+      - "neural network"
+      - "representation learning"
+      - "self-supervised learning"
+      - "generative model"
+    arxiv_categories:
+      - "cs.LG"
+      - "cs.AI"
+      - "stat.ML"
+  reasoning:
+    name: "推理与规划"
+    priority: 0.8
+    keywords:
+      - "reasoning"
+      - "planning"
+      - "agent"
+      - "tool use"
+      - "multi-step"
+    arxiv_categories:
+      - "cs.AI"
+      - "cs.CL"
+      - "cs.LG"

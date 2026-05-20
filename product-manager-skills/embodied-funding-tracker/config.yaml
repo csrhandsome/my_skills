@@ -1,0 +1,100 @@
+---
+# 具身智能投融资专项追踪配置
+# 比 company-tracker 更深的融资分析：趋势洞察、投资方战略、估值逻辑
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# 投资阶段定义
+stages:
+  - name: "天使轮/种子轮"
+    typical_amount: "¥5M-30M / $1M-5M"
+    typical_valuation: "¥30M-200M"
+    signal: "新方向/新团队入局"
+  - name: "Pre-A/A轮"
+    typical_amount: "¥30M-300M / $5M-50M"
+    typical_valuation: "¥200M-2B"
+    signal: "技术验证通过，开始商业化"
+  - name: "B轮/C轮"
+    typical_amount: "¥300M-1B+ / $50M-200M"
+    typical_valuation: "¥2B-15B"
+    signal: "规模化验证，赛道领跑者出现"
+  - name: "D轮+/Pre-IPO"
+    typical_amount: "¥1B+ / $200M+"
+    typical_valuation: "¥15B+"
+    signal: "上市前冲刺，行业格局初定"
+  - name: "战略投资/并购"
+    typical_amount: "不定"
+    typical_valuation: "不定"
+    signal: "大厂/产业资本布局，生态整合"
+
+# 核心投资方数据库
+investors:
+  strategic_cn:
+    - name: "蚂蚁集团"
+      focus: "平台生态，星海图独家领投"
+    - name: "美团/美团龙珠"
+      focus: "场景驱动，星海图/银河通用"
+    - name: "腾讯"
+      focus: "自己做 Tairos 平台，不投本体"
+    - name: "百度/百度风投"
+      focus: "AI 生态，北京人形/星海图"
+    - name: "阿里巴巴"
+      focus: "逐际动力（被收购意向），物流场景"
+    - name: "华为"
+      focus: "芯片+平台，间接布局"
+    - name: "宁德时代"
+      focus: "电池/能源，应用场景"
+  strategic_intl:
+    - name: "NVIDIA NVentures"
+      focus: "平台生态，投 Figure/Generalist 等客户"
+    - name: "Bezos Expeditions"
+      focus: "长期愿景投资，Figure/Physical Intelligence"
+    - name: "OpenAI"
+      focus: "AI+机器人，1X/Figure"
+    - name: "Microsoft"
+      focus: "云+AI，Figure"
+    - name: "Amazon"
+      focus: "收购 Covariant，场景驱动"
+    - name: "Hyundai"
+      focus: "收购 Boston Dynamics，制造场景"
+  vc_cn:
+    - "高瓴创投 — 星海图/银河通用"
+    - "IDG 资本 — 星海图"
+    - "红杉中国 — 多家"
+    - "经纬创投 — 多家"
+    - "凯辉基金 — 星海图 A2/A3 领投"
+    - "今日资本 — 星海图 A4 领投"
+    - "松禾资本 — 超维动力 Pre-A"
+    - "小苗朗程 — 智域基石"
+  vc_intl:
+    - "Benchmark — Sunday Robotics"
+    - "Spark Capital — Generalist"
+    - "Boldstart Ventures — Generalist"
+
+# 融资趋势判断指标
+trend_indicators:
+  - indicator: "季度总融资金额"
+    signal: "赛道热度最直接指标"
+    threshold_hot: ">$5B/季度"
+    threshold_cold: "<$1B/季度"
+  - indicator: "单笔平均金额"
+    signal: "资金向头部集中 vs 雨露均沾"
+  - indicator: "新入场机构数量"
+    signal: "是否还有新钱进来"
+  - indicator: "战略投资占比"
+    signal: "产业资本 vs 财务资本，前者预示整合"
+  - indicator: "并购事件数"
+    signal: "整合加速信号（如 Amazon/Covariant）"
+
+# 搜索配置
+aggregate_queries:
+  en:
+    - "humanoid robot funding investment round 2025"
+    - "embodied AI robotics venture capital M&A 2025"
+    - "Figure AI Generalist Physical Intelligence funding valuation 2025"
+  zh:
+    - "具身智能 人形机器人 融资 2025"
+    - "机器人 投融资 投资方 估值 2025"
+    - "星海图 智元 宇树 融资 估值 2025"

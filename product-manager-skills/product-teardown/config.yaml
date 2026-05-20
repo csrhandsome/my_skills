@@ -1,0 +1,549 @@
+---
+# 具身智能竞品产品拆解配置
+# 产品数据库，标准化规格模板，对比维度定义
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-04-30"
+  description: "Embodied AI Product Teardown — 竞品产品拆解与对比"
+
+# 产品对比维度定义
+dimensions:
+  hardware:
+    label: "硬件规格"
+    weight: 0.25
+    fields:
+      - dof_total          # 总自由度
+      - dof_arms           # 手臂自由度（单臂）
+      - dof_hands          # 手部自由度（单手）
+      - height             # 身高 (m)
+      - weight             # 体重 (kg)
+      - payload_per_arm    # 单臂负载 (kg)
+      - battery_life       # 续航 (h)
+      - speed              # 行走速度 (m/s)
+      - joint_torque       # 关节扭矩 (Nm)
+
+  actuation:
+    label: "执行器"
+    weight: 0.15
+    fields:
+      - actuator_type      # 执行器类型（旋转/直线/SEA/QDD/液压）
+      - gear_type          # 减速器类型
+      - self_developed     # 是否自研执行器
+      - backdrivability    # 反向驱动力
+
+  sensing:
+    label: "传感器"
+    weight: 0.15
+    fields:
+      - cameras            # 相机配置
+      - depth_sensor       # 深度传感器
+      - tactile            # 触觉传感器
+      - imu                # IMU
+      - force_torque       # 力/力矩传感器
+      - proprioception     # 本体感知
+
+  compute:
+    label: "计算平台"
+    weight: 0.10
+    fields:
+      - onboard_chip       # 端侧芯片
+      - compute_tops       # AI 算力 (TOPS)
+      - edge_cloud_split   # 端云分工
+      - inference_latency  # 推理延迟 (ms)
+
+  software:
+    label: "软件栈"
+    weight: 0.20
+    fields:
+      - foundation_model   # 基础模型
+      - training_paradigm  # 训练范式
+      - sim_platform       # 仿真平台
+      - autonomy_level     # 自主等级
+      - multi_modal        # 多模态能力
+      - api_openness       # API 开放性
+
+  commercial:
+    label: "商业化"
+    weight: 0.15
+    fields:
+      - price              # 价格
+      - target_price       # 目标价格
+      - production_status  # 量产状态
+      - target_use_case    # 目标场景
+      - customers          # 已知客户
+      - delivery_timeline  # 交付时间线
+
+# 产品数据库
+products:
+  # === 国际双足人形 ===
+  - name: "Figure 02"
+    company: "Figure AI"
+    region: "US"
+    category: "Humanoid"
+    generation: 2
+    released: "2024-08"
+    specs:
+      dof_total: ~40
+      dof_arms: 7
+      dof_hands: ~6 (per hand)
+      height: ~1.70
+      weight: ~70
+      payload_per_arm: ~10
+      battery_life: ~5
+      speed: ~1.2
+      actuator_type: "旋转电机"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "多视角 RGB/RGBD"
+      depth_sensor: "有"
+      tactile: "有（指尖）"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开具体型号)"
+      compute_tops: "未公开"
+      foundation_model: "自研 VLA"
+      training_paradigm: "模仿学习 + RL"
+      autonomy_level: "短周期自主任务"
+      multi_modal: "VLM 集成"
+      price: "未公开（B2B 模式）"
+      target_price: "未公开"
+      production_status: "小批量"
+      target_use_case: "工业物料搬运"
+      customers: "BMW"
+      delivery_timeline: "2024 BMW 工厂测试"
+    keywords: ["Figure 02", "Figure AI", "Brett Adcock", "BMW robot"]
+
+  - name: "Tesla Optimus Gen 2"
+    company: "Tesla"
+    region: "US"
+    category: "Humanoid"
+    generation: 2
+    released: "2023-12"
+    specs:
+      dof_total: ~40+
+      dof_arms: 7
+      dof_hands: 11 (per hand)
+      height: ~1.73
+      weight: ~63
+      payload_per_arm: ~15
+      battery_life: "未公开（~2 小时目标）"
+      speed: ~0.6
+      actuator_type: "自研旋转+直线执行器"
+      gear_type: "自研减速器"
+      self_developed: true
+      cameras: "Autopilot 相机 (8x)"
+      depth_sensor: "有"
+      tactile: "有（指尖六维力）"
+      force_torque: "有"
+      onboard_chip: "FSD Computer 2 (自研)"
+      compute_tops: ">100 TOPS (估算)"
+      foundation_model: "自研（FSD 迁移 + 自研 VLA）"
+      training_paradigm: "遥操作数据 + 模仿学习 + RL"
+      autonomy_level: "工厂内自主执行简单任务"
+      multi_modal: "视觉+力觉+触觉"
+      price: "未公开（目标 $20K）"
+      target_price: "$20,000"
+      production_status: "内部工厂测试"
+      target_use_case: "汽车工厂装配/搬运"
+      customers: "Tesla 自用"
+      delivery_timeline: "2025 内部使用，2026 可能外销"
+    keywords: ["Tesla Optimus", "Optimus Gen 2", "Elon Musk robot"]
+
+  - name: "1X NEO"
+    company: "1X Technologies"
+    region: "Norway/US"
+    category: "Humanoid"
+    generation: 1
+    released: "2024 (Beta)"
+    specs:
+      dof_total: ~30+
+      dof_arms: 7
+      dof_hands: ~5 (per hand)
+      height: ~1.65
+      weight: ~30
+      payload_per_arm: "~5"
+      battery_life: "~2-4"
+      speed: ~1.0
+      actuator_type: "直接驱动电机"
+      gear_type: "无减速器（直驱）"
+      self_developed: true
+      cameras: "RGB 相机 (5x)"
+      depth_sensor: "有"
+      tactile: "未公开"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开)"
+      compute_tops: "未公开"
+      foundation_model: "自研端到端模型"
+      training_paradigm: "遥操作 + 端到端学习"
+      autonomy_level: "单任务自主"
+      multi_modal: "视觉+自然语言"
+      price: "未公开"
+      target_price: "目标 $15K-20K"
+      production_status: "Beta 测试"
+      target_use_case: "家居服务"
+      customers: "内部测试"
+      delivery_timeline: "2025-2026 量产"
+    keywords: ["1X NEO", "1X robot", "EVE", "Bernt Børnich"]
+
+  - name: "Atlas (Electric)"
+    company: "Boston Dynamics"
+    region: "US"
+    category: "Humanoid"
+    generation: "2024 refresh"
+    released: "2024-04"
+    specs:
+      dof_total: ~40+
+      dof_arms: 7
+      dof_hands: "2-finger + gripper"
+      height: ~1.50
+      weight: ~89
+      payload_per_arm: "~10"
+      battery_life: "未公开（~1 小时）"
+      speed: "~2.5 (奔跑)"
+      actuator_type: "旋转电机 + 自研驱动"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "RGB-D + 立体视觉"
+      depth_sensor: "有"
+      tactile: "未公开"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开)"
+      compute_tops: "未公开"
+      foundation_model: "自研 MPC + RL"
+      training_paradigm: "MPC + RL 运动控制"
+      autonomy_level: "演示级自主"
+      multi_modal: "视觉+力觉"
+      price: "未公开（非卖品）"
+      target_price: "未公开"
+      production_status: "研发/演示"
+      target_use_case: "未来工厂/物流"
+      customers: "现代汽车"
+      delivery_timeline: "未知"
+    keywords: ["Boston Dynamics", "Atlas electric", "Hyundai Boston Dynamics"]
+
+  - name: "Digit"
+    company: "Agility Robotics"
+    region: "US"
+    category: "Humanoid (Logistics)"
+    generation: 4
+    released: "2023"
+    specs:
+      dof_total: ~20
+      dof_arms: "钳形末端"
+      dof_hands: "2-finger"
+      height: ~1.75
+      weight: ~63
+      payload_per_arm: "~16 (lifting)"
+      battery_life: "~6"
+      speed: "~1.5"
+      actuator_type: "电机"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "RGB-D + 激光雷达"
+      depth_sensor: "有"
+      tactile: "无"
+      force_torque: "有"
+      onboard_chip: "GPU (Jetson class)"
+      compute_tops: "未公开"
+      foundation_model: "自研"
+      training_paradigm: "行为树 + RL"
+      autonomy_level: "仓库搬运自主"
+      multi_modal: "视觉"
+      price: "未公开（B2B）"
+      target_price: "未公开"
+      production_status: "小批量/测试"
+      target_use_case: "仓库物流搬运"
+      customers: "Amazon, GXO Logistics"
+      delivery_timeline: "2024 开始测试部署"
+    keywords: ["Agility Robotics", "Digit", "Amazon warehouse robot"]
+
+  # === 国内双足人形 ===
+  - name: "Unitree H1"
+    company: "宇树科技"
+    region: "CN"
+    category: "Humanoid"
+    generation: 1
+    released: "2023-08"
+    specs:
+      dof_total: "~40"
+      dof_arms: 7
+      dof_hands: "3-finger gripper"
+      height: ~1.80
+      weight: ~47
+      payload_per_arm: "~5"
+      battery_life: "~2"
+      speed: "~3.3 (奔跑)"
+      actuator_type: "自研电机 (M107)"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "RGB-D + 双目"
+      depth_sensor: "有"
+      tactile: "无"
+      force_torque: "有"
+      onboard_chip: "Xavier NX / Orin NX"
+      compute_tops: "21-100 TOPS"
+      foundation_model: "自研（配合仿真训练）"
+      training_paradigm: "RL (Isaac Gym)"
+      autonomy_level: "遥控 + 简单自主"
+      multi_modal: "视觉"
+      price: "¥650K ($90K)"
+      target_price: "¥100K-200K"
+      production_status: "已量产（小批量）"
+      target_use_case: "研发平台 / 工业探索"
+      customers: "高校/研究所/企业研发"
+      delivery_timeline: "2023 H2 开始交付"
+    keywords: ["宇树 H1", "Unitree H1", "Unitree humanoid", "王兴兴"]
+
+  - name: "Unitree G1"
+    company: "宇树科技"
+    region: "CN"
+    category: "Humanoid"
+    generation: 1
+    released: "2024-05"
+    specs:
+      dof_total: "23-43 (可配置)"
+      dof_arms: 7
+      dof_hands: "3-finger (可选 5-finger)"
+      height: ~1.27
+      weight: ~35
+      payload_per_arm: "~2"
+      battery_life: "~2"
+      speed: "~1.2"
+      actuator_type: "自研电机"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "RGB-D + 双目"
+      depth_sensor: "有"
+      tactile: "可选"
+      force_torque: "有"
+      onboard_chip: "Orin NX"
+      compute_tops: "~100 TOPS"
+      foundation_model: "自研（NVIDIA 合作伙伴）"
+      training_paradigm: "RL + 模仿学习"
+      autonomy_level: "遥控 + 简单自主"
+      multi_modal: "视觉"
+      price: "¥99K ($14K)"
+      target_price: "¥99K"
+      production_status: "已量产"
+      target_use_case: "教育/研发/性价比整机"
+      customers: "高校/研究所/个人开发者"
+      delivery_timeline: "2024 Q3 开始交付"
+    keywords: ["宇树 G1", "Unitree G1", "Unitree humanoid", "宇树 9.9万"]
+
+  - name: "远征 A2"
+    company: "智元机器人"
+    region: "CN"
+    category: "Humanoid"
+    generation: 2
+    released: "2024-08"
+    specs:
+      dof_total: "~50+"
+      dof_arms: 7
+      dof_hands: "12 (可选购灵巧手)"
+      height: ~1.70
+      weight: ~60
+      payload_per_arm: "~10"
+      battery_life: "未公开"
+      speed: "~1.2"
+      actuator_type: "自研关节模组"
+      gear_type: "自研"
+      self_developed: true
+      cameras: "RGB-D + 多视角"
+      depth_sensor: "有"
+      tactile: "可选（灵巧手版本）"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开)"
+      compute_tops: "未公开"
+      foundation_model: "自研 VLA"
+      training_paradigm: "遥操作 + 模仿学习 + RL"
+      autonomy_level: "短周期自主任务"
+      multi_modal: "视觉+力觉+自然语言"
+      price: "¥600K-¥900K (估算)"
+      target_price: "¥200K-300K"
+      production_status: "小批量"
+      target_use_case: "工业/商业服务"
+      customers: "未公开"
+      delivery_timeline: "2024 H2 开始交付"
+    keywords: ["智元", "Agibot", "远征A2", "稚晖君", "彭志辉"]
+
+  - name: "Fourier GR-2"
+    company: "傅利叶智能"
+    region: "CN"
+    category: "Humanoid"
+    generation: 2
+    released: "2024-09"
+    specs:
+      dof_total: "~54"
+      dof_arms: 7
+      dof_hands: "12 (per hand)"
+      height: ~1.75
+      weight: ~63
+      payload_per_arm: "~5"
+      battery_life: "~2"
+      speed: "~1.0"
+      actuator_type: "旋转电机 + 直线执行器"
+      gear_type: "谐波减速器"
+      self_developed: true
+      cameras: "RGB-D (6x)"
+      depth_sensor: "有"
+      tactile: "有（指尖）"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开)"
+      compute_tops: "未公开"
+      foundation_model: "自研（康复机器人技术迁移）"
+      training_paradigm: "RL + 模仿学习"
+      autonomy_level: "遥控 + 简单自主"
+      multi_modal: "视觉+触觉"
+      price: "未公开"
+      target_price: "未公开"
+      production_status: "小批量"
+      target_use_case: "康复/服务/工业"
+      customers: "医疗机构"
+      delivery_timeline: "2024 H2-2025"
+    keywords: ["傅利叶", "Fourier GR-2", "Fourier intelligence"]
+
+  - name: "Astribot S1"
+    company: "星尘智能"
+    region: "CN"
+    category: "Humanoid / Manipulation"
+    generation: 1
+    released: "2024-04 (demo)"
+    specs:
+      dof_total: "未公开"
+      dof_arms: 7
+      dof_hands: "~12 (per hand)"
+      height: "未公开"
+      weight: "未公开"
+      payload_per_arm: "~5"
+      battery_life: "未公开"
+      speed: "未公开"
+      actuator_type: "电机"
+      gear_type: "未公开"
+      self_developed: true
+      cameras: "RGB-D"
+      depth_sensor: "有"
+      tactile: "有（指尖）"
+      force_torque: "有"
+      onboard_chip: "GPU (未公开)"
+      compute_tops: "未公开"
+      foundation_model: "自研端到端 VLA"
+      training_paradigm: "模仿学习 (ACT/Diffusion Policy)"
+      autonomy_level: "演示级自主操作"
+      multi_modal: "视觉+触觉"
+      price: "未公开"
+      target_price: "未公开"
+      production_status: "研发阶段"
+      target_use_case: "家庭/商业服务"
+      customers: "内部测试"
+      delivery_timeline: "未知"
+    keywords: ["星尘智能", "Astribot S1", "星尘泡茶", "叠衣机器人"]
+
+  - name: "EngineAI PM01"
+    company: "众擎机器人"
+    region: "CN"
+    category: "Humanoid"
+    generation: 1
+    released: "2024"
+    specs:
+      dof_total: "~30+"
+      dof_arms: 7
+      dof_hands: "3-finger"
+      height: ~1.58
+      weight: ~45
+      payload_per_arm: "~3"
+      battery_life: "~2"
+      speed: "~1.0"
+      actuator_type: "电机"
+      gear_type: "谐波减速器"
+      self_developed: false
+      cameras: "RGB-D"
+      depth_sensor: "有"
+      tactile: "无"
+      force_torque: "有"
+      onboard_chip: "Jetson Orin NX"
+      compute_tops: "~100 TOPS"
+      foundation_model: "开源模型 + 自研"
+      training_paradigm: "RL (Isaac Gym)"
+      autonomy_level: "遥控 + 简单自主"
+      multi_modal: "视觉"
+      price: "¥88K ($13K)"
+      target_price: "¥88K"
+      production_status: "小批量"
+      target_use_case: "教育/研发/高性价比"
+      customers: "高校/研究所"
+      delivery_timeline: "2024 Q4"
+    keywords: ["众擎", "EngineAI", "PM01", "SA01"]
+
+  # === 四足 ===
+  - name: "Unitree B2"
+    company: "宇树科技"
+    region: "CN"
+    category: "Quadruped"
+    generation: 2
+    released: "2023"
+    specs:
+      dof_total: 12
+      payload_per_arm: "~40 (背负)"
+      battery_life: "~4-6"
+      speed: "~1.7"
+      actuator_type: "自研电机 (M107)"
+      self_developed: true
+      cameras: "RGB-D + 双目 + LiDAR 可选"
+      onboard_chip: "Orin NX"
+      software:
+        autonomy: "自主巡检/自主导航"
+      commercial:
+        price: "¥150K-¥400K"
+        target_use_case: "工业巡检/安防/物流"
+    keywords: ["宇树 B2", "Unitree B2", "Unitree quadruped"]
+
+  - name: "Spot"
+    company: "Boston Dynamics"
+    region: "US"
+    category: "Quadruped"
+    generation: 3
+    released: "2020"
+    specs:
+      dof_total: 12
+      payload_per_arm: "~14 (背负)"
+      battery_life: "~1.5"
+      speed: "~1.6"
+      actuator_type: "电机"
+      self_developed: true
+      cameras: "360° 立体视觉 + LiDAR 可选"
+      onboard_chip: "GPU"
+      software:
+        autonomy: "自主巡检/自主导航"
+      commercial:
+        price: "$75K+"
+        target_use_case: "工业巡检/建筑/公共安全"
+    keywords: ["Boston Dynamics Spot", "Spot robot"]
+
+  # === 软件/模型平台 ===
+  - name: "NVIDIA GR00T"
+    company: "NVIDIA"
+    region: "US"
+    category: "Foundation Model / Platform"
+    released: "2024-03"
+    specs:
+      platform_type: "具身基础模型 + 仿真平台"
+      model_capability: "多模态 VLA，理解自然语言+观察+生成动作"
+      sim_support: "Isaac Sim / Isaac Lab"
+      hardware_support: "Jetson Thor, Orin 等"
+      partners: "Figure AI, 1X, Agility, Unitree, Agibot 等"
+      api_openness: "开发者 SDK"
+    keywords: ["NVIDIA GR00T", "Isaac Sim", "Jetson Thor"]
+
+  - name: "Physical Intelligence π0"
+    company: "Physical Intelligence (Pi)"
+    region: "US"
+    category: "Foundation Model / Software"
+    released: "2024"
+    specs:
+      platform_type: "通用机器人基础模型"
+      model_capability: "VLA 模型，跨机器人平台泛化"
+      sim_support: "未公开"
+      hardware_support: "跨平台（多机器人本体）"
+      partners: "未公开"
+      api_openness: "未公开（研发阶段）"
+    keywords: ["Physical Intelligence", "π0", "pi-zero", "robot foundation model"]

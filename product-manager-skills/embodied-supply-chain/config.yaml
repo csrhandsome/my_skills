@@ -1,0 +1,202 @@
+---
+# 具身智能产业链分析配置
+# 覆盖上游核心零部件 → 中游本体集成 → 下游场景应用
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-05-04"
+
+# 产业链层级定义
+supply_chain:
+
+  - tier: "核心零部件"
+    tier_id: "upstream-core"
+    segments:
+      - name: "执行器/电机"
+        name_cn: "执行器与电机"
+        importance: "critical"
+        suppliers:
+          international:
+            - "Maxon (瑞士)"
+            - "Faulhaber (德国)"
+            - "Harmonic Drive Systems (日本)"
+            - "Nabtesco (日本)"
+            - "TQ-RoboDrive (德国)"
+          domestic:
+            - "钛虎机器人 — 关节模组"
+            - "因时机器人 — 微型伺服电缸"
+            - "绿的谐波 — 谐波减速器"
+            - "双环传动 — RV/谐波减速器"
+            - "汇川技术 — 伺服电机"
+            - "步科股份 — 低压伺服"
+            - "禾川科技 — 伺服系统"
+            - "鼎智科技 — 微型电机"
+        watch_signals:
+          - "国产谐波减速器精度对标 Harmonic Drive"
+          - "直线执行器 vs 旋转执行器技术路线"
+          - "自研执行器趋势（Tesla/智元/宇树自研）"
+
+      - name: "传感器"
+        name_cn: "传感器"
+        importance: "critical"
+        suppliers:
+          international:
+            - "Intel RealSense (深度相机)"
+            - "Stereolabs ZED (双目相机)"
+            - "Luxonis OAK (AI 相机)"
+            - "GelSight (触觉)"
+            - "ATI Industrial Automation (力/力矩)"
+          domestic:
+            - "奥比中光 — 3D 视觉"
+            - "帕西尼感知 — 多维触觉"
+            - "海伯森 — 六维力传感器"
+            - "坤维科技 — 力传感器"
+            - "思岚科技 — 激光雷达"
+            - "舜宇光学 — 镜头模组"
+        watch_signals:
+          - "触觉传感器成本下降路径"
+          - "国产 3D 视觉方案性能对标 Intel RealSense"
+          - "电子皮肤商业化进展"
+
+      - name: "计算芯片"
+        name_cn: "计算芯片"
+        importance: "critical"
+        suppliers:
+          international:
+            - "NVIDIA Jetson (Orin/Thor)"
+            - "Qualcomm RB5/RB6"
+            - "Intel Core Ultra (AI PC 迁移)"
+            - "AMD Kria"
+          domestic:
+            - "地平线 — 征程系列"
+            - "华为昇腾 — Atlas 200"
+            - "瑞芯微 — RK3588"
+            - "全志科技"
+            - "黑芝麻智能"
+        watch_signals:
+          - "Jetson Thor 性能/功耗参数"
+          - "国产替代 TOPS/Watt 指标"
+          - "端侧大模型推理芯片进展"
+
+      - name: "电池/能源"
+        name_cn: "电池与能源"
+        importance: "high"
+        suppliers:
+          international:
+            - "Panasonic"
+            - "Samsung SDI"
+          domestic:
+            - "宁德时代"
+            - "比亚迪"
+            - "亿纬锂能"
+            - "欣旺达"
+        watch_signals:
+          - "半固态/固态电池在机器人场景的应用"
+          - "续航突破 4h+ 方案"
+
+  - tier: "软件与平台"
+    tier_id: "midstream-software"
+    segments:
+      - name: "仿真平台"
+        name_cn: "仿真平台"
+        importance: "high"
+        suppliers:
+          international:
+            - "NVIDIA Isaac Sim/Isaac Lab"
+            - "Google DeepMind MuJoCo"
+            - "Gazebo (Open Robotics)"
+            - "Unity"
+          domestic:
+            - "腾讯 Robotics X (Tairos 含仿真)"
+            - "清华/港大等开源仿真"
+        watch_signals:
+          - "仿真→真实 zero-shot 迁移成功率"
+          - "国产仿真平台进展"
+
+      - name: "操作系统/中间件"
+        name_cn: "操作系统与中间件"
+        importance: "medium"
+        suppliers:
+          international:
+            - "ROS 2 (Open Robotics)"
+            - "NVIDIA Isaac ROS"
+          domestic:
+            - "地平线 TogetherROS"
+            - "腾讯 Tairos"
+        watch_signals:
+          - "实时性/确定性调度能力"
+          - "多机器人协同框架"
+
+      - name: "数据服务"
+        name_cn: "数据服务"
+        importance: "emerging"
+        suppliers:
+          domestic:
+            - "智域基石 — 数据编译平台"
+            - "星海图 — EDP 开发平台"
+        watch_signals:
+          - "数据编译标准化进展"
+          - "真机采集工厂建设进度"
+
+  - tier: "本体集成"
+    tier_id: "midstream-integration"
+    description: "整机厂，参见 embodied-company-tracker 公司数据库"
+    note: "此层级公司已在 company-tracker 中详细追踪，本 skill 聚焦产业链上下游"
+
+  - tier: "场景应用"
+    tier_id: "downstream-application"
+    segments:
+      - name: "工业制造"
+        name_cn: "工业制造"
+        maturity: "early-deployment"
+        key_demands: ["物料搬运", "装配辅助", "质量检测", "危险环境作业"]
+        early_adopters: ["BMW (Figure)", "Tesla (自用)", "CATL (Galbot)", "Amazon (Digit)"]
+      - name: "仓储物流"
+        name_cn: "仓储物流"
+        maturity: "early-deployment"
+        key_demands: ["拣选", "打包", "搬运", "分拣"]
+        early_adopters: ["Amazon (Digit)", "GXO Logistics (Digit)", "京东", "菜鸟"]
+      - name: "家庭服务"
+        name_cn: "家庭服务"
+        maturity: "emerging"
+        key_demands: ["清洁整理", "厨房辅助", "老人陪伴", "物品取放"]
+        early_adopters: ["1X (NEO)", "Sunday (Memo)", "荣耀 (ROBOT PHONE)"]
+      - name: "医疗康复"
+        name_cn: "医疗康复"
+        maturity: "early-deployment"
+        key_demands: ["康复训练", "手术辅助", "护理搬运", "药品配送"]
+        early_adopters: ["傅利叶 (外骨骼)", "UBTECH (Walker 医疗版)"]
+      - name: "商业服务"
+        name_cn: "商业服务"
+        maturity: "emerging"
+        key_demands: ["迎宾导览", "餐饮配送", "零售补货", "安防巡逻"]
+        early_adopters: ["UBTECH", "Galbot", "CloudMinds"]
+
+# 链主分析框架
+chain_analysis:
+  bottleneck_areas:
+    - "高精度谐波减速器（仍依赖日本 HD）"
+    - "高算力低功耗端侧芯片（NVIDIA 主导）"
+    - "多维触觉传感器（商业化初期）"
+  domestic_substitution:
+    - area: "执行器"
+      progress: "60-70%"
+      gap: "高端精密减速器寿命/精度"
+    - area: "传感器"
+      progress: "40-50%"
+      gap: "触觉传感器量产一致性"
+    - area: "芯片"
+      progress: "30-40%"
+      gap: "端侧大模型推理算力差距大"
+
+# 搜索配置
+aggregate_queries:
+  en:
+    - "robot actuator harmonic drive supply chain 2025"
+    - "robot sensor tactile vision supply chain 2025"
+    - "NVIDIA Jetson Thor Qualcomm robotics chip 2025"
+    - "humanoid robot BOM cost breakdown 2025"
+  zh:
+    - "人形机器人 核心零部件 产业链 2025"
+    - "机器人 减速器 伺服电机 传感器 国产替代 2025"
+    - "具身智能 供应链 执行器 灵巧手 2025"

@@ -441,27 +441,35 @@ def main():
     parser.add_argument('--title', type=str, default='[论文标题]', help='论文标题 / Paper title')
     parser.add_argument('--authors', type=str, default='[Authors]', help='论文作者 / Paper authors')
     parser.add_argument('--domain', type=str, default='其他', help='论文领域 / Paper domain')
-    parser.add_argument('--vault', type=str, default=None, help='Obsidian vault 路径 / Obsidian vault path')
+    parser.add_argument('--short-name', type=str, default='', help='用户指定的论文简写名称 / User-specified short name for folder')
+    parser.add_argument('--output-dir', type=str, default=None, help='输出目录绝对路径 / Output directory absolute path')
+    parser.add_argument('--vault', type=str, default=None, help='(已弃用) Obsidian vault 路径')
     parser.add_argument('--language', type=str, default='zh', choices=['zh', 'en'], help='语言 / Language: zh (中文) or en (English)')
     args = parser.parse_args()
 
-    vault_root = get_vault_path(args.vault)
-    papers_dir = os.path.join(vault_root, "vibe_research", "20_Research", "Papers")
     date = datetime.now().strftime("%Y-%m-%d")
 
-    # 清理文件名中的非法字符
-    import re
-    paper_title_safe = re.sub(r'[ /\\:*?"<>|]+', '_', args.title).strip('_')
+    # 使用用户指定的 short_name 作为文件名
+    short_name = args.short_name.strip()
+    if not short_name:
+        import re as _re
+        short_name = _re.sub(r'[ /\\:*?"<>|]+', '_', args.title).strip('_')
 
-    # 校验域名，防止路径穿越
-    domain = args.domain.strip('/\\').replace('..', '')
-    if not domain:
-        domain = '其他' if args.language == 'zh' else 'Other'
+    # 确定输出目录
+    if args.output_dir:
+        note_dir = args.output_dir
+    elif args.vault:
+        vault_root = get_vault_path(args.vault)
+        domain = args.domain.strip('/\\').replace('..', '')
+        if not domain:
+            domain = '其他' if args.language == 'zh' else 'Other'
+        note_dir = os.path.join(vault_root, "vibe_research", "20_Research", "Papers", domain, short_name)
+    else:
+        raise RuntimeError("必须提供 --output-dir 或 --vault 参数。")
 
-    note_dir = os.path.join(papers_dir, domain)
     os.makedirs(note_dir, exist_ok=True)
 
-    note_path = os.path.join(note_dir, f"{paper_title_safe}.md")
+    note_path = os.path.join(note_dir, f"{short_name}.md")
     content = generate_note_content(args.paper_id, args.title, args.authors, domain, date, args.language)
 
     try:
