@@ -28,6 +28,21 @@ START_MY_DAY_SKILL_DIR="[directory containing this SKILL.md]"
 - 禁止裸用：`python scripts/search_arxiv.py`、`uv run python scripts/scan_existing_notes.py`
 - 如果同时存在源码副本 `vibe_research_skills/start-my-day/` 和安装副本 `/Users/three/.cc-switch/skills/start-my-day/`，使用本次实际加载的 skill 副本；修改源码后需要同步到安装副本才会生效。
 
+### 基于 Preference 的目录推导
+
+当以 `--preference` 传入 preference 文件路径时，`scan_existing_notes.py` 会自动推导排重目录，无需手动指定 `--vault` 或 `--papers-dir`：
+
+```
+Vault/
+  ├── Paper/                    ← 已精读论文（自动扫描）
+  └── vibe_research_xxx/
+        ├── preference_xxx.md   ← --preference 指向这里
+        └── YYYY-MM-DD_论文推荐.md  ← 历史推荐（自动扫描）
+```
+
+- **已精读论文**：`dirname(preference)` 的上一级目录中的 `Paper/` 文件夹
+- **已推荐论文**：`preference` 所在目录中的 `*_论文推荐.md` / `*_paper-recommendations.md`
+
 ## 内置 Preference 预设
 
 Skill 内置多个研究方向偏好配置，存放在 skill 目录的 `preferences/` 下：
@@ -35,6 +50,7 @@ Skill 内置多个研究方向偏好配置，存放在 skill 目录的 `preferen
 | 预设文件 | 研究方向 | 来源 |
 |---|---|---|
 | `preferences/hci-biofeedback.yaml` | 生理计算/生物反馈 + 情感计算 + 具身交互 | 用户自定义 (vibe_research_HCI) |
+| `preferences/hci-biomusic.yaml` | 脑机音乐接口 + 具身音乐智能 + 符号音乐生成 + 音乐神经反馈 | 用户自定义 (vibe_research_HCI_BIOMUSIC) |
 | `preferences/embodied-ai.yaml` | VLA 模型 + 世界模型 + 机器人学习 + 具身推理 | 用户自定义 (vibe_research_embody) |
 | `preferences/robotics.yaml` | 机器人与具身智能 + 强化学习 | 内置通用预设 |
 | `preferences/hci.yaml` | 人机交互 + 可访问性设计 | 内置通用预设 |
@@ -127,8 +143,11 @@ else
 fi
 
 # ========== 执行工作流 ==========
+# --preference 会自动推导：
+#   1) 上一级目录的 Paper/ 文件夹 → 已精读论文
+#   2) preference 所在目录 → 历史推荐文件
 uv run python "$START_MY_DAY_SKILL_DIR/scripts/scan_existing_notes.py" \
-  --vault "$(dirname "$PREFERENCE_FILE")" \
+  --preference "$PREFERENCE_FILE" \
   --output "$RUN_DIR/existing_notes_index.json"
 
 uv run python "$START_MY_DAY_SKILL_DIR/scripts/search_arxiv.py" \
@@ -139,6 +158,12 @@ uv run python "$START_MY_DAY_SKILL_DIR/scripts/search_arxiv.py" \
   --max-results 200 \
   --top-n 10 \
   --output-format start-my-day
+
+# ========== 更新 paperlist ==========
+# 将本次推荐的新论文追加到 preference 同目录的 paperlist.md
+uv run python "$START_MY_DAY_SKILL_DIR/scripts/update_paperlist.py" \
+  --preference "$PREFERENCE_FILE" \
+  --daily-note "$DAILY_NOTE"
 ```
 
 没有 `uv` 时才退回当前 Python：
@@ -151,15 +176,19 @@ python "$START_MY_DAY_SKILL_DIR/scripts/search_arxiv.py" --config "$PREFERENCE_F
 
 ## 工作流程
 
-1. **获取 Preference 路径**：要求用户提供 preference 文件的绝对路径。也可以从 skill 内置的 `preferences/` 目录选择一个预设，但仍需确认输出目录。
+1. **获取 Preference 路径**：要求用户提供 preference 文件的绝对路径。这是启动的必需参数，所有排重和输出目录都围绕它推导。
 2. **解析日期**：使用当前日期作为推荐笔记日期，可通过搜索脚本 `--target-date YYYY-MM-DD` 复现历史日期。
 3. **读取偏好**：加载 preference 文件中的关键词、研究领域、arXiv 分类、语言设置。
-4. **扫描已有笔记**：执行 `scan_existing_notes.py`，构建标题、arXiv ID、alias、关键词索引，用于排重和自动链接。
+4. **扫描已有笔记**：执行 `scan_existing_notes.py --preference`，自动推导排重目录：
+   - `../Paper/` → 已精读过的论文笔记
+   - `preference` 所在目录 → 历史推荐文件（`*_论文推荐.md`）
+   - 构建标题、arXiv ID、alias、关键词索引，用于排重和自动链接。
 5. **搜索论文**：执行 `search_arxiv.py`，搜索最近 30 天和过去一年热门/高相关论文；默认 top 10。
 6. **读取结果**：使用 `arxiv_filtered.json` 中的 `top_papers` / 推荐结果，不要重新手工搜索一套结果。
 7. **生成推荐笔记**：写入 preference 文件所在目录下的 `YYYY-MM-DD_论文推荐.md`（中文）或 `YYYY-MM-DD_paper-recommendations.md`（英文）。
-8. **关键词链接**：可选执行 `link_keywords.py`，用已有笔记索引给推荐笔记自动加 `[[内部链接]]`。
-9. **交付摘要**：告诉用户生成路径、推荐数量、最高优先级论文和下一步可运行的 `/paper-analyze`。
+8. **更新 paperlist**：执行 `update_paperlist.py`，将本次推荐的新论文追加到 preference 同目录的 `paperlist.md` 中（按日期分组）。
+9. **关键词链接**：可选执行 `link_keywords.py`，用已有笔记索引给推荐笔记自动加 `[[内部链接]]`。
+10. **交付摘要**：告诉用户生成路径、推荐数量、最高优先级论文和下一步可运行的 `/paper-analyze`。
 
 ## 推荐笔记结构
 
@@ -250,4 +279,5 @@ cp "$RUN_DIR/linked_daily_note.md" "$DAILY_NOTE"
 - 已执行搜索脚本并读取 JSON 输出。
 - daily 推荐笔记已写入 `vibe_research/10_Daily/`。
 - 推荐笔记只做轻量推荐，没有混入 `paper-analyze` 的深度报告内容。
+- `update_paperlist.py` 已执行，`Paperlist.md` 已更新（追加新论文、更新已有论文的推荐来源和得分）。
 - 每篇推荐都有明确下一步：`/paper-analyze [arXiv ID]`。

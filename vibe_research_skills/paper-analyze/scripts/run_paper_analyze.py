@@ -531,6 +531,28 @@ def main():
     if mineru_archive["mineru_images_dir"]:
         print(f"mineru_images_dir: {mineru_archive['mineru_images_dir']}")
 
+    # 更新整理大纲并给文件夹编号
+    if vault_root:
+        try:
+            catalog_command = [
+                sys.executable,
+                str(CURRENT_DIR / "update_catalog.py"),
+                "--paper-dir", str(output_dir),
+                "--vault", str(vault_root),
+                "--title", title,
+                "--paper-id", paper_id or pdf_path.stem,
+                "--keywords", domain,
+                "--main-content", f"待分析 — 运行 /paper-analyze 后更新",
+                "--score", str(args.score) if args.score else "-",
+            ]
+            printable = " ".join(catalog_command)
+            logger.info("[update_catalog] %s", printable)
+            result = subprocess.run(catalog_command)
+            if result.returncode != 0:
+                logger.warning("Catalog update failed with exit code %d", result.returncode)
+        except Exception as exc:
+            logger.warning("Catalog update failed: %s", exc)
+
 
 if __name__ == "__main__":
     try:

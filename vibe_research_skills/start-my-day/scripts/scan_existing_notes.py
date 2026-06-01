@@ -164,6 +164,105 @@ def build_dedupe_index(notes: List[Dict]) -> Dict[str, Dict[str, List[str]]]:
     }
 
 
+def extract_papers_from_daily_file(md_file: Path) -> List[Dict]:
+    """
+    从历史推荐文件（daily recommendation）中提取论文列表。
+
+    匹配格式：
+      ### 论文标题
+      - **arXiv**：XXXX.XXXXX
+
+    Returns:
+        [{'title': str, 'arxiv_id': str, 'source_file': str}, ...]
+    """
+    papers: List[Dict] = []
+    try:
+        with open(md_file, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+    except Exception as e:
+        logger.warning("Error reading daily file %s: %s", md_file, e)
+        return papers
+
+    # 匹配标题行：### 标题（支持前面有空白）
+    title_pattern = re.compile(r'^#{3,4}\s+(.*)$', re.MULTILINE)
+    # 匹配 arXiv 行：- **arXiv**：XXXX.XXXXX（支持中英文冒号、多种空格）
+    arxiv_pattern = re.compile(
+        r'^-\s+\*\*arXiv\*\*\s*[：:]\s*(\d{4}\.\d{4,5})',
+        re.MULTILINE | re.IGNORECASE,
+    )
+
+    titles = title_pattern.findall(content)
+    arxiv_ids = arxiv_pattern.findall(content)
+
+    # 简单按索引配对；如果数量不一致，取最小值
+    count = min(len(titles), len(arxiv_ids))
+    for i in range(count):
+        title = titles[i].strip()
+        arxiv_id = arxiv_ids[i]
+        if title and arxiv_id:
+            papers.append({
+                'title': title,
+                'arxiv_id': arxiv_id,
+                'source_file': str(md_file),
+            })
+
+    return papers
+
+
+def scan_daily_recommendations(dirs: List[str]) -> Tuple[Set[str], Set[str], Dict[str, Set[str]], Dict[str, Set[str]]]:
+    """
+    扫描历史推荐目录，提取已推荐论文的 arXiv ID 和标题别名。
+
+    Args:
+        dirs: 历史推荐文件所在目录列表（绝对路径）
+
+    Returns:
+        (seen_arxiv_ids, seen_title_aliases, note_paths_by_arxiv_id, note_paths_by_alias)
+    """
+    seen_arxiv_ids: Set[str] = set()
+    seen_title_aliases: Set[str] = set()
+    note_paths_by_arxiv_id: Dict[str, Set[str]] = {}
+    note_paths_by_alias: Dict[str, Set[str]] = {}
+
+    daily_patterns = ('*_论文推荐.md', '*_paper-recommendations.md')
+
+    for d in dirs:
+        dir_path = Path(d)
+        if not dir_path.exists() or not dir_path.is_dir():
+            logger.warning("Daily recommendation directory not found: %s", d)
+            continue
+
+        for pattern in daily_patterns:
+            for md_file in dir_path.glob(pattern):
+                papers = extract_papers_from_daily_file(md_file)
+                if not papers:
+                    continue
+
+                logger.info("Scanned %d papers from daily file: %s", len(papers), md_file.name)
+
+                for paper in papers:
+                    arxiv_id = paper['arxiv_id']
+                    title = paper['title']
+                    source = paper['source_file']
+
+                    seen_arxiv_ids.add(arxiv_id)
+                    note_paths_by_arxiv_id.setdefault(arxiv_id, set()).add(source)
+
+                    title_alias = normalize_alias(title)
+                    if title_alias:
+                        seen_title_aliases.add(title_alias)
+                        note_paths_by_alias.setdefault(title_alias, set()).add(source)
+
+                    # 同时用 Obsidian 笔记文件名格式做别名（与 search_arxiv.py 的 note_filename_alias 对应）
+                    note_filename = re.sub(r'[ /\\:*?"<>|]+', '_', title).strip('_')
+                    filename_alias = normalize_alias(note_filename)
+                    if filename_alias and filename_alias != title_alias:
+                        seen_title_aliases.add(filename_alias)
+                        note_paths_by_alias.setdefault(filename_alias, set()).add(source)
+
+    return seen_arxiv_ids, seen_title_aliases, note_paths_by_arxiv_id, note_paths_by_alias
+
+
 def should_exclude_note(md_file: Path, papers_dir: Path) -> bool:
     """排除图片目录和自动生成索引等不应进入论文索引的 markdown。"""
     try:
@@ -316,17 +415,51 @@ def build_keyword_index(notes: List[Dict]) -> Dict[str, List[str]]:
     return keyword_index
 
 
+def resolve_paths_from_preference(preference_file: str):
+    """
+    从 preference 文件路径自动推导排重所需目录。
+
+    约定结构：
+      Vault/
+        ├── Paper/                          ← 已精读论文
+        └── vibe_research_xxx/
+              ├── preference_xxx.md         ← preference 文件
+              └── YYYY-MM-DD_论文推荐.md    ← 历史推荐文件
+
+    Returns:
+        (papers_dir, daily_dirs, vault_path)
+    """
+    pref_path = Path(preference_file).resolve()
+    if not pref_path.exists():
+        raise FileNotFoundError(f"Preference file not found: {preference_file}")
+
+    preference_dir = pref_path.parent
+    vault_path = preference_dir.parent
+
+    # 已精读论文：Vault 根目录下的 Paper/ 文件夹
+    papers_dir = vault_path / "Paper"
+
+    # 历史推荐文件：preference 所在目录
+    daily_dirs = [str(preference_dir)]
+
+    return papers_dir, daily_dirs, vault_path
+
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='Scan existing notes and build keyword index')
+    parser.add_argument('--preference', type=str,
+                        help='Path to the preference file. If provided, auto-derives Paper/ dir and daily recommendation dir.')
     parser.add_argument('--vault', type=str,
                         default=os.environ.get('OBSIDIAN_VAULT_PATH', ''),
-                        help='Path to Obsidian vault (or set OBSIDIAN_VAULT_PATH env var)')
+                        help='Path to Obsidian vault (fallback if --preference not given)')
     parser.add_argument('--output', type=str, default='existing_notes_index.json',
                         help='Output JSON file path')
     parser.add_argument('--papers-dir', type=str,
                         default='vibe_research/20_Research/Papers',
-                        help='Relative path to Papers directory')
+                        help='Relative path to Papers directory (fallback if --preference not given)')
+    parser.add_argument('--daily-dirs', type=str, nargs='+', default=[],
+                        help='Additional directories containing past daily recommendation markdown files (legacy)')
 
     args = parser.parse_args()
 
@@ -337,26 +470,73 @@ def main():
         stream=sys.stderr,
     )
 
-    if not args.vault:
-        logger.error("未指定 vault 路径。请通过 --vault 参数或 OBSIDIAN_VAULT_PATH 环境变量设置。")
-        sys.exit(1)
+    papers_dir: Path
+    daily_dirs: List[str] = list(args.daily_dirs)
+    vault_path: Path
 
-    vault_path = Path(args.vault)
-    papers_dir = vault_path / args.papers_dir
+    if args.preference:
+        papers_dir, derived_daily_dirs, vault_path = resolve_paths_from_preference(args.preference)
+        logger.info("Resolved from preference: %s", args.preference)
+        logger.info("  Papers dir (read): %s", papers_dir)
+        logger.info("  Daily dirs (history): %s", derived_daily_dirs)
+        # 将自动推导的 daily_dirs 与手动传入的合并
+        daily_dirs = list(dict.fromkeys(derived_daily_dirs + daily_dirs))
+    else:
+        if not args.vault:
+            logger.error("未指定 --preference，也未指定 --vault 或 OBSIDIAN_VAULT_PATH。")
+            sys.exit(1)
+        vault_path = Path(args.vault)
+        papers_dir = vault_path / args.papers_dir
 
     if not papers_dir.exists():
-        logger.error("Papers directory not found: %s", papers_dir)
-        logger.error("Using vault path: %s", vault_path)
-        sys.exit(1)
-
-    logger.info("Scanning notes in: %s", papers_dir)
-
-    notes = scan_notes_directory(papers_dir)
-    logger.info("Found %d notes", len(notes))
+        logger.warning("Papers directory not found: %s", papers_dir)
+        logger.warning("Skipping paper notes scan.")
+        notes = []
+    else:
+        logger.info("Scanning notes in: %s", papers_dir)
+        notes = scan_notes_directory(papers_dir)
+        logger.info("Found %d notes", len(notes))
 
     keyword_index = build_keyword_index(notes)
     logger.info("Built index with %d keywords", len(keyword_index))
     dedupe_index = build_dedupe_index(notes)
+
+    # 合并历史推荐文件的排重数据
+    if daily_dirs:
+        logger.info("Scanning past daily recommendations in: %s", daily_dirs)
+        (
+            daily_seen_arxiv_ids,
+            daily_seen_aliases,
+            daily_paths_by_arxiv,
+            daily_paths_by_alias,
+        ) = scan_daily_recommendations(daily_dirs)
+
+        dedupe_index['seen_arxiv_ids'] = sorted(
+            set(dedupe_index.get('seen_arxiv_ids', [])) | daily_seen_arxiv_ids
+        )
+        dedupe_index['seen_title_aliases'] = sorted(
+            set(dedupe_index.get('seen_title_aliases', [])) | daily_seen_aliases
+        )
+
+        # 合并 note_paths_by_arxiv_id
+        existing_paths_by_arxiv = dedupe_index.get('note_paths_by_arxiv_id', {})
+        for arxiv_id, paths in daily_paths_by_arxiv.items():
+            merged = set(existing_paths_by_arxiv.get(arxiv_id, [])) | paths
+            existing_paths_by_arxiv[arxiv_id] = sorted(merged)
+        dedupe_index['note_paths_by_arxiv_id'] = existing_paths_by_arxiv
+
+        # 合并 note_paths_by_alias
+        existing_paths_by_alias = dedupe_index.get('note_paths_by_alias', {})
+        for alias, paths in daily_paths_by_alias.items():
+            merged = set(existing_paths_by_alias.get(alias, [])) | paths
+            existing_paths_by_alias[alias] = sorted(merged)
+        dedupe_index['note_paths_by_alias'] = existing_paths_by_alias
+
+        logger.info(
+            "Merged %d historical arXiv IDs and %d title aliases from daily recommendations",
+            len(daily_seen_arxiv_ids),
+            len(daily_seen_aliases),
+        )
 
     # 准备输出
     output = {
