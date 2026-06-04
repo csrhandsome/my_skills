@@ -92,61 +92,64 @@ def main():
     paper_root = None
     if args.vault:
         vault_path = Path(args.vault).resolve()
-        # 1. 先尝试直接的 vault/Paper/
         vault_paper = vault_path / 'Paper'
         if vault_paper.exists():
             paper_root = vault_paper
 
     if not paper_root:
-        # 2. 从 paper_dir 推导：检查父目录是否名为 Paper
         if paper_dir.parent.name == 'Paper':
             paper_root = paper_dir.parent
 
     if not paper_root:
-        # 3. 在 vault 下搜索 Paper 目录（处理项目子文件夹结构）
         vault_path = Path(args.vault).resolve() if args.vault else paper_dir.parent.parent
         for candidate in vault_path.rglob('Paper'):
             if candidate.is_dir():
-                # 检查 paper_dir 是否是这个 Paper 目录的子目录
                 try:
                     paper_dir.relative_to(candidate)
                     paper_root = candidate
                     break
                 except ValueError:
-                    # 也接受 vault 下第一层或第二层的 Paper 目录
                     rel = candidate.relative_to(vault_path)
                     if len(rel.parts) <= 2:
                         paper_root = candidate
                         break
 
-    if not paper_root or not paper_root.exists():
-        print(f"Could not locate Paper directory for {paper_dir}, skipping catalog update.")
-        return
-
-    catalog_path = paper_root / '整理大纲.md'
-
-    # 检查文件夹是否已有编号前缀
+    # 确定编号
     has_number_prefix = bool(re.match(r'^(\d+)[-_]', paper_dir.name))
-
     if has_number_prefix:
-        # 已有编号，提取编号并直接使用
         match = re.match(r'^(\d+)[-_]', paper_dir.name)
         next_num = int(match.group(1))
         print(f"Folder already numbered: {paper_dir.name} (using #{next_num})")
+    else:
+        if paper_root:
+            next_num = get_next_number(paper_root)
+        else:
+            # 没有 Paper 目录时，从同级目录中推断编号
+            next_num = get_next_number(paper_dir.parent)
+
+    # 重命名文件夹
+    if has_number_prefix:
         new_dir = paper_dir
     else:
-        # 计算下一个编号并重命名
-        next_num = get_next_number(paper_root)
-        new_name = f"{next_num}_{paper_dir.name}"
-        new_dir = paper_root / new_name
+        # 去掉名称中可能已有的编号前缀后重新编号
+        clean_name = re.sub(r'^(\d+)[-_]', '', paper_dir.name)
+        new_name = f"{next_num}_{clean_name}"
+        if paper_root:
+            new_dir = paper_root / new_name
+        else:
+            new_dir = paper_dir.parent / new_name
         paper_dir.rename(new_dir)
         print(f"Renamed folder: {paper_dir.name} -> {new_name}")
 
-    # 更新整理大纲
-    year = extract_year_from_paper_id(args.paper_id)
-    append_to_catalog(catalog_path, next_num, args.title, year,
-                      args.keywords, args.main_content, args.score)
-    print(f"Updated catalog: {catalog_path} (entry #{next_num})")
+    # 更新整理大纲（仅在有 Paper 目录时）
+    if paper_root:
+        catalog_path = paper_root / '整理大纲.md'
+        year = extract_year_from_paper_id(args.paper_id)
+        append_to_catalog(catalog_path, next_num, args.title, year,
+                          args.keywords, args.main_content, args.score)
+        print(f"Updated catalog: {catalog_path} (entry #{next_num})")
+    else:
+        print(f"Paper directory not found, skipped catalog update. Folder renamed in-place.")
 
     # 输出新目录路径，供调用方更新后续引用
     print(f"new_paper_dir: {new_dir}")

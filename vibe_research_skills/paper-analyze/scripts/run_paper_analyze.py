@@ -493,6 +493,43 @@ def main():
         pdf_stem=pdf_path.stem,
     )
 
+    # 更新整理大纲并给文件夹编号（在构建 manifest 之前，确保路径已更新）
+    new_dir = output_dir  # 默认值，catalog 失败时保持原路径
+    try:
+        catalog_command = [
+            sys.executable,
+            str(CURRENT_DIR / "update_catalog.py"),
+            "--paper-dir", str(output_dir),
+            "--title", title,
+            "--paper-id", paper_id or (pdf_path.stem if pdf_path else short_name),
+            "--keywords", domain,
+            "--main-content", "待分析 — 运行 /paper-analyze 后更新",
+            "--score", str(args.score) if args.score else "-",
+        ]
+        if vault_root:
+            catalog_command.extend(["--vault", str(vault_root)])
+        printable = " ".join(catalog_command)
+        logger.info("[update_catalog] %s", printable)
+        result = subprocess.run(catalog_command, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.warning("Catalog update failed with exit code %d: %s", result.returncode, result.stderr)
+        else:
+            # 解析新目录路径
+            for line in result.stdout.splitlines():
+                if line.startswith("new_paper_dir:"):
+                    new_dir = Path(line.split(":", 1)[1].strip())
+                    break
+            if new_dir != output_dir:
+                logger.info("Folder renamed: %s -> %s", output_dir, new_dir)
+                output_dir = new_dir
+                note_root = output_dir
+                note_path = output_dir / f"{short_name}.md"
+                images_dir = note_root / "images"
+                index_path = images_dir / "index.md"
+                research_pdf_path = output_dir / f"{short_name}.pdf"
+    except Exception as exc:
+        logger.warning("Catalog update failed: %s", exc)
+
     manifest = {
         "paper_id": paper_id or pdf_path.stem,
         "pdf_path": str(pdf_path),
@@ -530,28 +567,6 @@ def main():
     print(f"mineru_text_path: {mineru_archive['mineru_text_path']}")
     if mineru_archive["mineru_images_dir"]:
         print(f"mineru_images_dir: {mineru_archive['mineru_images_dir']}")
-
-    # 更新整理大纲并给文件夹编号
-    if vault_root:
-        try:
-            catalog_command = [
-                sys.executable,
-                str(CURRENT_DIR / "update_catalog.py"),
-                "--paper-dir", str(output_dir),
-                "--vault", str(vault_root),
-                "--title", title,
-                "--paper-id", paper_id or pdf_path.stem,
-                "--keywords", domain,
-                "--main-content", f"待分析 — 运行 /paper-analyze 后更新",
-                "--score", str(args.score) if args.score else "-",
-            ]
-            printable = " ".join(catalog_command)
-            logger.info("[update_catalog] %s", printable)
-            result = subprocess.run(catalog_command)
-            if result.returncode != 0:
-                logger.warning("Catalog update failed with exit code %d", result.returncode)
-        except Exception as exc:
-            logger.warning("Catalog update failed: %s", exc)
 
 
 if __name__ == "__main__":
