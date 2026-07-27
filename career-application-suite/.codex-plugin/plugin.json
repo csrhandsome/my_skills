@@ -1,0 +1,25 @@
+{
+  "name": "career-application-suite",
+  "version": "0.2.0",
+  "description": "Build a verified career vault, discover and deduplicate jobs, tailor resumes, track applications in SQLite and Notion, and learn ranking weights from outcomes.",
+  "author": {
+    "name": "qiuchan"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Career Application Suite",
+    "shortDescription": "可验证经历库、岗位发现、简历定制与投递学习闭环",
+    "longDescription": "维护与岗位会话隔离的 Base 经历事实库，聚合 BOSS、飞书、腾讯文档和公司官网岗位，生成可追溯的定向简历，在本地与 Notion 后台追踪投递，并根据结果自动调整后续岗位排序权重。",
+    "developerName": "qiuchan",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "建立并完善我的 Base 经历库。",
+      "搜索相关岗位并生成去重后的 Markdown 清单。",
+      "查看已投递岗位，并根据结果更新推荐权重。"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "role_match": 0.5,
+  "skill_match": 0.5,
+  "evidence_strength": 0.5,
+  "domain_match": 0.5,
+  "impact_match": 0.5,
+  "job_freshness": 0.5,
+  "source_quality": 0.5,
+  "location_fit": 0.5
+}

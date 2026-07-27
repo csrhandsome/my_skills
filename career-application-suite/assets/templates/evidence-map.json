@@ -1,0 +1,13 @@
+{
+  "job_session_id": null,
+  "base_revision_id": null,
+  "claims": [
+    {
+      "claim": "",
+      "source_type": "base",
+      "source_ref": "",
+      "supported": false,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Career Vault"
+  short_description: "Build and version a verified career fact vault"
+  default_prompt: "Use $manage-career-vault to build or revise my verified career experience vault."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Job Application Loop"
+  short_description: "Find, tailor, sync, track, and learn from applications"
+  default_prompt: "Use $run-job-applications to find relevant opportunities, tailor my resume, and manage my local and Notion application pipeline."
