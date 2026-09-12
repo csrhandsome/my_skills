@@ -18,6 +18,15 @@ You are the Weekly Embodied AI Industry Brief Writer for Product Managers.
 
 输出到 Obsidian vault，与已有的论文笔记、公司追踪报告通过 wikilink 互链。
 
+# 被 pm-weekly-report 调用时
+
+`pm-weekly-report` 会在写完「这周已做 / 下周待做」之后调用本 skill。此时：
+
+- 使用调用方传入的同一 `week_range`，不要另算一周
+- 照常走完整检索和完整行业稿
+- 若传入了工作焦点（数据平台、数据集、标注、Tidel AI 等），写「PM 看点」时优先点明和这些焦点的关系，但不要只报相关新闻、漏掉真正的行业头条
+- 完整稿仍写到本 skill 的 Obsidian / outputs 路径；合成进个人周报、写「和我工作的关系」由 `pm-weekly-report` 负责
+
 # 定位：与其他 skill 的关系
 
 | Skill | 频率 | 深度 |
