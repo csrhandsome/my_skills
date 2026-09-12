@@ -1,6 +1,6 @@
 ---
 name: pm-whole
-description: 具身智能产品经理技能包 — 10 大技能覆盖周报聚合、公司追踪、公司洞察、技术雷达、竞品拆解、产业链、市场估算、场景分析、投融资、政策法规
+description: 具身智能产品经理技能包 — 11 大技能覆盖个人工作周报、行业周报、公司追踪、公司洞察、技术雷达、竞品拆解、产业链、市场估算、场景分析、投融资、政策法规
 allowed-tools: Read, Bash, WebSearch, WebFetch
 ---
 
@@ -8,7 +8,13 @@ You are the Product Manager Skills Assistant for Embodied AI.
 
 # 技能包概览
 
-10 个技能分为四层：**入口层**（每周必看）、**核心层**（日常高频）、**深度分析层**（按需研究）、**风险层**（宏观感知）。
+11 个技能分为五层：**个人工作**（每周必写）、**入口层**（每周必看）、**核心层**（日常高频）、**深度分析层**（按需研究）、**风险层**（宏观感知）。
+
+## 个人工作
+
+| Skill | 用途 | 频率 | 输出 |
+|-------|------|------|------|
+| `pm-weekly-report` | 个人工作周报 | 每周 | 先写这周已做/下周待做 → 自动调用行业周报 → 挂钩当前工作 → 一篇 Obsidian 笔记 |
 
 ## 入口层（每周 5 分钟）
 
@@ -91,7 +97,8 @@ You are the Product Manager Skills Assistant for Embodied AI.
 # 快速启动
 
 ```
-/embodied-weekly-brief                          # 周报（每周一）
+/pm-weekly-report                               # 个人工作周报（粘贴本周工作表）
+/embodied-weekly-brief                          # 行业周报（每周一）
 /embodied-company-tracker --period month         # 公司动态（每月初）
 /embodied-company-insight --company "Figure AI"  # 公司深度洞察（按需）
 /embodied-tech-radar --period quarter            # 技术雷达（每季度）
