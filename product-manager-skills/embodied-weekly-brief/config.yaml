@@ -1,6 +1,6 @@
 ---
 # 具身智能行业周报配置
-# 每周一次，聚合 8 个 skill 的关键信号，输出 Obsidian-ready 图文周报
+# 每周一次，检索行业信号，输出 Obsidian-ready 图文周报
 
 metadata:
   version: "1.0"
@@ -29,9 +29,13 @@ sections:
     max_items: 2
 
   - id: "product-update"
-    name_cn: "产品动态"
-    description: "新品发布、版本更新、demo 展示"
+    name_cn: "产品动态 / 拆解信号"
+    description: "新品、改规格、改价；完整拆解交给 product-teardown"
     max_items: 3
+
+  - id: "lenses"
+    name_cn: "九镜扫描"
+    description: "公司洞察、技术雷达、产业链、市场、场景、投融资解读、政策；无信号写本周无新增"
 
   - id: "what-to-watch"
     name_cn: "下周关注"
@@ -41,17 +45,24 @@ sections:
     name_cn: "PM 随想"
     description: "本周对产品经理最有启发的一个洞察"
 
-# 搜索配置：每周 3-4 次聚合搜索即可覆盖
+# 九镜搜索：公司 / 融资 / 产品 / 技术 / 供应链 / 市场场景 / 政策
 search:
   templates:
     en:
       - "\"humanoid robot\" OR \"embodied AI\" news announcement {week_range}"
-      - "robotics funding investment round {week_range}"
-      - "\"robot\" product launch demo release {week_range}"
+      - "Figure AI Tesla Optimus Boston Dynamics 1X Agility Unitree Agibot news {week_range}"
+      - "robotics funding investment round valuation {week_range}"
+      - "\"robot\" product launch demo teardown specs {week_range}"
+      - "VLA dexterous manipulation humanoid locomotion Sim2Real tactile {week_range}"
+      - "robot actuator harmonic drive sensor Jetson supply chain {week_range}"
+      - "humanoid robot market size factory warehouse deployment policy {week_range}"
     zh:
       - "具身智能 OR 人形机器人 新闻 动态 {week_range}"
-      - "机器人 融资 投资 {week_range}"
-      - "人形机器人 新品 发布 演示 {week_range}"
+      - "宇树 智元 傅利叶 优必选 星海图 星动纪元 逐际动力 融资 产品 {week_range}"
+      - "人形机器人 融资 估值 投资 {week_range}"
+      - "人形机器人 新品 发布 拆解 规格 {week_range}"
+      - "具身 基础模型 灵巧操作 遥操作 执行器 减速器 国产替代 {week_range}"
+      - "人形机器人 市场规模 工厂 仓储 落地 政策 工信部 {week_range}"
   preferred_domains:
     english:
       - "techcrunch.com"
@@ -70,9 +81,6 @@ obsidian:
   output_folder: "具身学习/News"
   filename_template: "{YYYY-MM-DD}_具身智能周报.md"
   image_folder: "具身学习/News/assets"
-  link_to_skills:
-    company_tracker: "[[具身学习/News/company_tracker_{YYYY-MM}]]"
-    tech_radar: "[[具身学习/News/tech_radar_{YYYY-QQ}]]"
 
 # 图片策略
 image_strategy:
@@ -83,3 +91,77 @@ image_strategy:
   max_images_per_brief: 5
   preferred_size: "400"
   note: "图片 URL 优先使用原始链接，必要时下载到 vault 的 90_Assets 目录"
+
+# 原 company-tracker 关注名单，周报检索时优先盯这些名字
+watchlist:
+  international_tier1:
+    - Figure AI
+    - Tesla Optimus
+    - Boston Dynamics
+    - 1X Technologies
+    - Agility Robotics
+    - NVIDIA
+    - Google DeepMind
+  international_tier2:
+    - Sanctuary AI
+    - Apptronik
+    - Physical Intelligence
+    - Covariant
+    - Skild AI
+    - Generalist
+    - MenteeBot
+    - Sunday Robotics
+    - Reflex Robotics
+  domestic_tier1:
+    - 宇树
+    - 智元
+    - 傅利叶
+    - 优必选
+    - 达闼
+    - 云深处
+    - 星海图
+    - 北京人形
+    - 荣耀机器人
+    - 腾讯 Robotics X
+  domestic_tier2:
+    - 星动纪元
+    - 逐际动力
+    - 银河通用
+    - 智平方
+    - 开普勒
+    - 众擎
+    - 星尘智能
+    - 帕西尼
+    - 自变量
+    - 千寻
+    - 穹彻
+    - 加速进化
+    - 因时
+    - 钛虎
+
+tech_areas:
+  - 具身基础模型 / VLA
+  - 灵巧操作
+  - 双足运动控制
+  - Sim2Real
+  - 触觉感知
+  - 遥操作与数据
+  - 3D 视觉
+  - 灵巧手硬件
+  - 关节执行器
+  - 边缘计算与芯片
+
+scenarios:
+  - 工厂装配
+  - 仓储拣选
+  - 老人陪护
+  - 家务整理
+  - 康复训练
+  - 零售导览
+
+policy_regions:
+  - 中国
+  - 美国
+  - 欧盟
+  - 日本
+  - 韩国

@@ -5,7 +5,7 @@
 """
 
 import argparse, json, os, sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 import yaml
 
@@ -33,6 +33,25 @@ def get_obsidian_output_path(config: dict, week_start: str, fallback_dir: Path) 
         return fallback_dir / f"{week_start}_具身智能周报.md"
 
 
+def lens_bullets(items, empty="本周无新增"):
+    if not items:
+        return [f"- {empty}", ""]
+    lines = []
+    for item in items:
+        if isinstance(item, str):
+            lines.append(f"- {item}")
+            continue
+        title = item.get("title") or item.get("company") or item.get("name") or ""
+        desc = item.get("description") or item.get("brief") or ""
+        extra = item.get("tag") or item.get("maturity") or ""
+        head = f"**{title}**" if title else ""
+        mid = f"：{desc}" if desc else ""
+        tail = f" _{extra}_" if extra else ""
+        lines.append(f"- {head}{mid}{tail}".strip())
+    lines.append("")
+    return lines
+
+
 def image_md(url_or_path: str, size: str = "400") -> str:
     """Format an image for Obsidian: remote URL or local wikilink."""
     if not url_or_path:
@@ -49,25 +68,6 @@ def generate_markdown(config: dict, data: dict) -> str:
     week_range = f"{week_start} ~ {week_end}"
     generated_at = data.get("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M"))
     next_week_start = data.get("next_week_start", "")
-
-    company_tracker_link = config.get("obsidian", {}).get("link_to_skills", {}).get(
-        "company_tracker", ""
-    )
-    tech_radar_link = config.get("obsidian", {}).get("link_to_skills", {}).get(
-        "tech_radar", ""
-    )
-
-    # Fill in date placeholders in links
-    try:
-        ws_date = datetime.strptime(week_start, "%Y-%m-%d")
-        month_key = ws_date.strftime("%Y-%m")
-        # crude quarter calculation
-        q = (ws_date.month - 1) // 3 + 1
-        quarter_key = f"{ws_date.year}-Q{q}"
-        company_tracker_link = company_tracker_link.replace("{YYYY-MM}", month_key)
-        tech_radar_link = tech_radar_link.replace("{YYYY-QQ}", quarter_key)
-    except ValueError:
-        pass
 
     lines = []
     lines.append("---")
@@ -118,9 +118,6 @@ def generate_markdown(config: dict, data: dict) -> str:
                 lines.append(f"- **[[{link}|{name}]]**：{brief}" if link else f"- **{name}**：{brief}")
             else:
                 lines.append(f"- **{name}**：{brief}")
-        if company_tracker_link:
-            lines.append(f"\n> 📊 详见 {company_tracker_link}\n")
-
     # Funding flash
     funding = data.get("funding_flash", [])
     if funding:
@@ -148,14 +145,32 @@ def generate_markdown(config: dict, data: dict) -> str:
     products = data.get("product_updates", [])
     if products:
         lines.append("---\n")
-        lines.append("## 📦 产品动态\n")
+        lines.append("## 📦 产品动态 / 拆解信号\n")
         for p in products:
             lines.append(f"- **{p.get('company', '')}**：{p.get('title', '')}")
             if p.get("description"):
                 lines.append(f"  {p['description']}")
+            if p.get("teardown"):
+                lines.append("  → 建议 `/product-teardown`")
             if p.get("image"):
                 lines.append(f"  {image_md(p['image'])}")
         lines.append("")
+
+    lines.append("---\n")
+    lines.append("## 🔭 九镜扫描\n")
+    lines.append("原专题 skill 的周更信号。没有新增就写「本周无新增」。\n")
+    lens_map = [
+        ("company_insight", "公司洞察"),
+        ("tech_radar", "技术雷达"),
+        ("supply_chain", "产业链"),
+        ("market", "市场估算"),
+        ("scenario", "场景分析"),
+        ("funding_read", "投融资解读"),
+        ("policy", "政策法规"),
+    ]
+    for key, title in lens_map:
+        lines.append(f"### {title}\n")
+        lines.extend(lens_bullets(data.get(key, [])))
 
     # What to watch
     watch = data.get("what_to_watch", [])
@@ -176,13 +191,6 @@ def generate_markdown(config: dict, data: dict) -> str:
     # Footer
     lines.append("---\n")
     lines.append(f"*下期预告：{next_week_start}*  \n")
-    related = []
-    if company_tracker_link:
-        related.append(f"月度公司追踪：{company_tracker_link}")
-    if tech_radar_link:
-        related.append(f"季度技术雷达：{tech_radar_link}")
-    if related:
-        lines.append(f"*相关报告：{' | '.join(related)}*")
     lines.append(f"\n*生成时间：{generated_at}*")
     return "\n".join(lines)
 

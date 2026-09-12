@@ -117,8 +117,9 @@ python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
 4. 调用 `generate_note.py` 生成基础 Obsidian 笔记。
 5. 调用 `extract-paper-images` 写入 Research 的 `images/` 和 `images/index.md`。
 6. 调用 `update_graph.py` 更新知识图谱。
-7. 创建 daily 工作目录并写入 `analysis_run.json`。
-8. 归档 MinerU markdown 和原始图片到 Research 的 `mineru/`。
+7. 调用 `update_catalog.py` 更新 `Paper/整理大纲.md` 并给论文文件夹加编号。
+8. 创建 daily 工作目录并写入 `analysis_run.json`。
+9. 归档 MinerU markdown 和原始图片到 Research 的 `mineru/`。
 
 只有在入口脚本已经运行过、且需要排查失败原因时，才允许手动分步调试。
 
@@ -134,6 +135,7 @@ python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
 6. **深度评价**：分析贡献、优势、局限、适用场景、失败条件和可复用点。
 7. **相关工作**：对比 2-5 篇最相关论文，说明改进、继承、差异和路线定位。
 8. **综合评分**：给出 0-10 总分与分项评分：创新性、技术质量、实验充分性、写作质量、实用性。
+9. **更新整理大纲**：分析完成后，更新 `Paper/整理大纲.md` 中对应条目的 `Keywords` 和 `Main Content` 列，填入真实关键词和 1-2 句主要内容摘要，同时更新 `总分` 列。入口脚本已自动添加了占位条目并给文件夹编号，只需找到对应编号的行并替换占位内容。
 
 ## 推荐笔记结构
 
@@ -226,6 +228,8 @@ python "$PAPER_ANALYZE_SKILL_DIR/scripts/run_paper_analyze.py" \
 - 已执行入口脚本并验证关键产物。
 - 正文写入 `daily_report_path`。
 - 图片只保存在 Research 目录；daily 未复制 `images/`。
+- 论文文件夹已自动编号（如 `19_论文标题`），`Paper/整理大纲.md` 已追加对应条目。
+- 整理大纲中对应条目的 Keywords、Main Content、总分 已更新为真实分析结果（非占位符）。
 - 至少解释 1 张方法/架构相关图片（如果论文存在）。
 - 方法、实验、局限、相关工作、评分均已补全。
 - 如同步回 `note_path`，确保内容一致且链接可用。

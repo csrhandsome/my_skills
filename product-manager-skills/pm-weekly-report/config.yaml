@@ -1,0 +1,51 @@
+metadata:
+  version: "1.0"
+
+source:
+  mode: paste
+  rows:
+    received: 接收工作
+    done: 完成工作
+  next_week_column: 下周待做
+
+week:
+  start: monday
+  title_template: "{start} ~ {end}"
+  title_example: "2026-09-07 ~ 09-11"
+
+output:
+  primary: obsidian
+  wecom_optional: true
+
+obsidian:
+  vault_env_var: OBSIDIAN_VAULT_PATH
+  output_folder: 工作/周报
+  filename_template: "{YYYY-MM-DD}_周报.md"
+  industry_brief_link: "[[具身学习/News/{YYYY-MM-DD}_具身智能周报]]"
+
+archive:
+  title: Murmur工作归档
+  docid: "a1_AVkATwZoAJ4CNzyGbuE9RRoqZ1glt"
+  url: "https://doc.weixin.qq.com/smartpage/a1_AVkATwZoAJ4CNzyGbuE9RRoqZ1glt?scode=AFwAdwdNAGMxQif45FAVkATwZoAJ4&p=1jigjo"
+  write_mode: table
+  table_columns:
+    - 周次
+    - 这周已做
+    - 下周待做
+    - 行业动态
+
+project_aliases:
+  - 数据平台
+  - 数据路径
+  - 外采数据集
+  - 素材脚本
+  - OSS下载
+  - Tidel AI
+  - 自动化标注
+  - 数据集生成
+  - 设备管理
+
+include_industry_brief: true
+call_industry_brief: embodied-weekly-brief
+industry_brief_timing: after_work
+
