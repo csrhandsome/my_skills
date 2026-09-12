@@ -46,7 +46,7 @@ description: 把用户粘贴的本周工作表先归纳成「这周已做 + 下�
 - 同一 `week_range`
 - 上一步的工作焦点（如数据平台、数据集、自动化标注、Tidel AI、设备管理）
 
-`embodied-weekly-brief` 仍按自己的流程出完整行业周报（头条 / 公司 / 融资 / 技术 / 产品）。完整稿写到它自己的输出路径：`$OBSIDIAN_VAULT_PATH/具身学习/News/{周五}_具身智能周报.md`；没有 vault 就写到那个 skill 的 `outputs/`。
+`embodied-weekly-brief` 仍按自己的流程出完整行业周报，且必须带九镜扫描（公司追踪/洞察、技术雷达、拆解信号、产业链、市场、场景、投融资、政策）。完整稿写到它自己的输出路径：`$OBSIDIAN_VAULT_PATH/具身学习/News/{周五}_具身智能周报.md`；没有 vault 就写到那个 skill 的 `outputs/`。
 
 ## 3. 结合我的工作
 
