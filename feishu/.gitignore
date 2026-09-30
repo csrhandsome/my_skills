@@ -1,0 +1,6 @@
+scripts/connection.local.json
+scripts/connection.json
+config.local.json
+node_modules/
+.feishu-write-receipts/
+*.log

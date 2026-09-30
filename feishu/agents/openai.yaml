@@ -1,0 +1,4 @@
+interface:
+  display_name: "feishu"
+  short_description: "把对话输出、报告或总结写入飞书文档，默认追加并核对结果"
+  default_prompt: "使用 $feishu，把上面的输出追加到我指定的飞书文档。"
